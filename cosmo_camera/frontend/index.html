@@ -54,10 +54,11 @@ const MSG = {
 };
 const zero = () => Object.fromEntries(LABELS.map((l) => [l, 0]));
 
-let args = { loginSeconds: 3, promptSeconds: 10, promptLabels: ['sadness','anger','fear'], modelUrl: './emotion-ferplus-8.onnx', active: true };
+let args = { loginSeconds: 3, promptSeconds: 10, promptConfidence: 0.70, promptCooldownSeconds: 300, promptLabels: ['sadness','anger','fear'], modelUrl: './emotion-ferplus-8.onnx', active: true };
 let detector = null, session = null, stream = null, timer = null;
 let running = false, busy = false, loggedIn = false, faceDetected = false;
 let faceSecs = 0, lastTick = 0, lastExpr = 0, lastKey = '', lastPeriodic = 0;
+let moodStreakLabel = null, moodStreakSecs = 0, lastPromptAt = 0;
 let totals = zero(), expression = null, status = 'idle', error = '', prompt = null, promptAction = null;
 
 function post(type, data) { window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, '*'); }
@@ -152,13 +153,22 @@ async function tick() {
           try {
             expression = await classify(video, det.boundingBox);
             totals[expression.label] += elapsed;
-            if (args.promptLabels.includes(expression.label) && totals[expression.label] >= args.promptSeconds && !prompt) {
-              totals[expression.label] = 0; prompt = expression.label; promptAction = null;
+            const eligible = args.promptLabels.includes(expression.label) && expression.score >= args.promptConfidence;
+            if (eligible) {
+              if (moodStreakLabel === expression.label) moodStreakSecs += elapsed;
+              else { moodStreakLabel = expression.label; moodStreakSecs = elapsed; }
+            } else {
+              moodStreakLabel = null; moodStreakSecs = 0;
+            }
+            const cooldownPassed = now - lastPromptAt >= args.promptCooldownSeconds * 1000;
+            if (eligible && moodStreakSecs >= args.promptSeconds && !prompt && cooldownPassed) {
+              prompt = expression.label; promptAction = null; lastPromptAt = now;
+              moodStreakLabel = null; moodStreakSecs = 0;
             }
           } finally { busy = false; }
         }
       } else {
-        faceDetected = false; faceSecs = 0;
+        faceDetected = false; faceSecs = 0; moodStreakLabel = null; moodStreakSecs = 0;
         if (loggedIn) lastExpr = now;
       }
       ui(Math.min(faceSecs / args.loginSeconds, 1));
@@ -187,6 +197,7 @@ function stop() {
   if (stream) stream.getTracks().forEach((t) => t.stop());
   stream = null; $('v').srcObject = null;
   loggedIn = false; faceDetected = false; faceSecs = 0; totals = zero(); expression = null; prompt = null; promptAction = null;
+  moodStreakLabel = null; moodStreakSecs = 0; lastPromptAt = 0;
   status = 'idle'; ui(); publish(true);
 }
 
