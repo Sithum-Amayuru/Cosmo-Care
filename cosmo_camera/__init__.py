@@ -22,7 +22,7 @@ def cosmo_camera(
     key="cosmo_camera",
     login_seconds=3,
     prompt_seconds=10,
-    prompt_labels=("sadness", "anger", "fear"),
+    prompt_labels=("sadness", "anger", "fear", "neutral"),
     model_url="./emotion-ferplus-8.onnx",
     active=True,
 ):
