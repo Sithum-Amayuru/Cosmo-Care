@@ -16,6 +16,9 @@ st.session_state.setdefault("cosmo_cam_gen", 0)
 st.session_state.setdefault("cosmo_chat_open", False)
 st.session_state.setdefault("cosmo_last_prompt_action", None)
 st.session_state.setdefault("cosmo_expression_totals", {})
+st.session_state.setdefault("cosmo_pending_mood", None)
+st.session_state.setdefault("cosmo_chat_history", [])
+st.session_state.setdefault("cosmo_mood_checkin_started", False)
 
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
@@ -41,6 +44,8 @@ with st.sidebar:
         and st.session_state.cosmo_last_prompt_action != "accepted"
     ):
         st.session_state.cosmo_chat_open = True
+        st.session_state.cosmo_pending_mood = cam.get("moodEvent")
+        st.session_state.cosmo_mood_checkin_started = False
     st.session_state.cosmo_last_prompt_action = cam["promptAction"]
 
     if st.session_state.cosmo_authenticated:
@@ -94,11 +99,78 @@ else:
     st.success("Welcome to the Cosmo Care mission console.")
 
     if st.session_state.cosmo_chat_open:
-        st.markdown("### 💬 Support assistant")
-        st.write("The support assistant will open here. (Chatbot integration is not added yet.)")
-        if st.button("Close assistant", key="cosmo_close_chat"):
-            st.session_state.cosmo_chat_open = False
+        import os
+
+        from modules.mood_companion import get_companion_response
+
+        # Streamlit Cloud secrets are exposed through st.secrets, not automatically
+        # as environment variables. Copy only the key into the process environment.
+        try:
+            if st.secrets.get("GROQ_API_KEY"):
+                os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+            if st.secrets.get("GROQ_MODEL"):
+                os.environ["GROQ_MODEL"] = st.secrets["GROQ_MODEL"]
+        except Exception:
+            pass
+
+        st.markdown("### 💬 Cosmo Care companion")
+        st.caption("A friendly conversation partner — not a mental-health diagnostic tool.")
+
+        # Start one gentle check-in only after the astronaut accepts the camera prompt.
+        if (
+            st.session_state.cosmo_pending_mood
+            and not st.session_state.cosmo_mood_checkin_started
+        ):
+            with st.spinner("Your companion is getting ready..."):
+                try:
+                    opening = get_companion_response(
+                        st.session_state.cosmo_chat_history,
+                        mood_context=st.session_state.cosmo_pending_mood,
+                    )
+                    st.session_state.cosmo_chat_history.append(
+                        {"role": "assistant", "content": opening}
+                    )
+                    st.session_state.cosmo_mood_checkin_started = True
+                    st.session_state.cosmo_pending_mood = None
+                except RuntimeError as exc:
+                    st.error(str(exc))
+                    st.info(
+                        "To enable the companion, add GROQ_API_KEY to your "
+                        "Streamlit app secrets. Never put the key in source code."
+                    )
+
+        for message in st.session_state.cosmo_chat_history:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        user_message = st.chat_input("Talk to your companion...", key="cosmo_chat_input")
+        if user_message:
+            st.session_state.cosmo_chat_history.append(
+                {"role": "user", "content": user_message}
+            )
+            try:
+                reply = get_companion_response(
+                    st.session_state.cosmo_chat_history[:-1],
+                    user_message=user_message,
+                )
+                st.session_state.cosmo_chat_history.append(
+                    {"role": "assistant", "content": reply}
+                )
+            except RuntimeError as exc:
+                st.error(str(exc))
             st.rerun()
+
+        left, right = st.columns(2)
+        with left:
+            if st.button("Close assistant", key="cosmo_close_chat"):
+                st.session_state.cosmo_chat_open = False
+                st.rerun()
+        with right:
+            if st.button("New conversation", key="cosmo_new_chat"):
+                st.session_state.cosmo_chat_history = []
+                st.session_state.cosmo_pending_mood = None
+                st.session_state.cosmo_mood_checkin_started = True
+                st.rerun()
         st.divider()
 
     page_options = {
