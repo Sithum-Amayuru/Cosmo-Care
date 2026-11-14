@@ -18,7 +18,7 @@ st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
 
 # Keep the webcam component in the same location on every page so that the
-# browser camera stream can remain active while the user navigates the app.
+# browser camera stream remains active while the user navigates the app.
 with st.sidebar:
     st.markdown("## 🛰️ Mission access")
     st.caption("Face-presence demo login")
@@ -44,20 +44,49 @@ with st.sidebar:
             # Refresh the Python UI to read the latest thread-safe detector state.
             st_autorefresh(interval=1000, key="cosmo-camera-status-refresh")
 
-            if camera_ctx.video_processor:
+            processor = camera_ctx.video_processor
+            if processor:
+                # Expression inference is enabled only after the demo login succeeds.
+                processor.set_expression_enabled(st.session_state.cosmo_authenticated)
                 (
                     face_detected,
                     face_count,
                     login_ready,
                     detection_seconds,
-                ) = camera_ctx.video_processor.face_status
+                    expression_label,
+                    expression_confidence,
+                    expression_status,
+                ) = processor.face_status
             else:
                 face_detected, face_count = False, 0
                 login_ready, detection_seconds = False, 0.0
+                expression_label, expression_confidence = "Unavailable", 0.0
+                expression_status = "Camera processor is starting."
 
             if st.session_state.cosmo_authenticated:
                 st.success("Demo session active")
-                st.caption("Face presence is no longer required to remain logged in.")
+                st.caption("Face presence is not required to remain logged in.")
+
+                st.markdown("### 🙂 Live expression estimate")
+                if face_detected:
+                    if expression_status == "ready":
+                        st.metric("Visible expression", expression_label)
+                        st.caption(
+                            f"Model score: {expression_confidence:.0%}. "
+                            "This is an estimate, not a measure of actual emotion."
+                        )
+                    elif expression_status == "loading":
+                        st.info("Loading the expression model…")
+                    elif expression_status.startswith("error:"):
+                        st.warning(
+                            "Expression model unavailable. Face detection and login "
+                            "can still work. " + expression_status.removeprefix("error:")
+                        )
+                    else:
+                        st.info("Waiting for a face to estimate its visible expression.")
+                else:
+                    st.info("No face currently visible. Expression estimates are paused.")
+
                 if st.button("Log out", use_container_width=True):
                     st.session_state.cosmo_authenticated = False
                     st.session_state.cosmo_camera_requested = False
@@ -69,12 +98,18 @@ with st.sidebar:
                     st.session_state.cosmo_authenticated = True
                     st.rerun()
             elif face_detected:
-                st.info(f"Keep your face visible briefly: {min(detection_seconds, 3.0):.1f} / 3.0 seconds")
+                st.info(
+                    f"Keep your face visible briefly: "
+                    f"{min(detection_seconds, 3.0):.1f} / 3.0 seconds"
+                )
             else:
                 st.warning("No face currently detected. Look towards the camera.")
 
         else:
-            st.warning("Camera is not streaming. Check browser permission and press START in the camera panel.")
+            st.warning(
+                "Camera is not streaming. Check browser permission and press START "
+                "in the camera panel."
+            )
             if st.button("Cancel camera", use_container_width=True):
                 st.session_state.cosmo_camera_requested = False
                 st.rerun()
@@ -82,6 +117,7 @@ with st.sidebar:
     st.divider()
     st.caption(
         "Prototype only: this detects face presence, not identity. "
+        "Expression labels are visual model estimates, not psychological assessments. "
         "Camera access requires browser permission."
     )
 
