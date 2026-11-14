@@ -19,6 +19,13 @@ b.metric("Crew / environment records", crew_records)
 c.metric("Demo astronaut profiles", health_profiles)
 st.markdown("### Explore Cosmo Care")
 st.markdown("Choose a workspace below to open its tools.")
+
+def _select_workspace(page_name):
+    # Button callbacks run before the next script execution, so the radio
+    # widget's session-state value is updated before that widget is created.
+    st.session_state.cosmo_selected_page = page_name
+
+
 pages = [
     ("☢️ Radiation monitoring", "Record detector CPS readings, inspect trends and review count-rate anomalies.", "Radiation Monitoring"),
     ("🫀 Crew & environment", "Enter crew physiological and spacecraft environmental readings.", "Crew & Environment"),
@@ -31,8 +38,12 @@ for i, (title, desc, page_name) in enumerate(pages):
         with st.container(border=True):
             st.markdown(f"#### {title}")
             st.write(desc)
-            if st.button("Open workspace →", key=f"open_{i}", use_container_width=True):
-                st.session_state.cosmo_selected_page = page_name
-                st.rerun()
+            st.button(
+                "Open workspace →",
+                key=f"open_{i}",
+                use_container_width=True,
+                on_click=_select_workspace,
+                args=(page_name,),
+            )
 st.divider()
 st.caption("COSMO CARE · Astronaut health and mission safety prototype")
