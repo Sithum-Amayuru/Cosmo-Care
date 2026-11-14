@@ -1,0 +1,202 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<style>
+  body{margin:0;font-family:system-ui,sans-serif;background:#0f1626;color:#dfe7f5;padding:12px}
+  video{width:100%;max-width:420px;border-radius:10px;background:#000;transform:scaleX(-1);display:block}
+  #chip{font-size:.85rem;margin:8px 0;color:#8a99b8}
+  #bar{height:8px;background:#1f2b45;border-radius:4px;overflow:hidden;margin:8px 0;max-width:420px}
+  #fill{height:100%;width:0;background:#4cc9f0;transition:width .15s linear}
+  label{display:flex;gap:8px;font-size:.85rem;color:#8a99b8;line-height:1.4;margin:10px 0;max-width:420px}
+  button{background:#4cc9f0;color:#04121a;border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;margin-right:6px}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.ghost{background:transparent;color:#dfe7f5;border:1px solid #1f2b45}
+  #msg{font-size:.85rem;color:#8a99b8} #msg.bad{color:#f4a259}
+  #prompt{border:1px solid #f4a259;border-radius:10px;padding:12px;margin-top:10px;max-width:420px}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<video id="v" muted playsinline></video>
+<canvas id="c" width="64" height="64" hidden></canvas>
+<div id="chip"></div>
+<div id="bar" hidden><div id="fill"></div></div>
+<label id="consentRow"><input type="checkbox" id="consent">
+  I agree to use my camera for face detection and facial-expression estimation. Video is processed on this device and is never uploaded.</label>
+<button id="go" disabled>Start camera</button><button id="stop" class="ghost" hidden>Stop camera</button>
+<p id="msg"></p>
+<div id="prompt" hidden>
+  <p id="promptText"></p>
+  <button id="accept">Talk to assistant</button><button id="dismiss" class="ghost">Not now</button>
+</div>
+
+<script type="module">
+import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const $ = (id) => document.getElementById(id);
+const LABELS = ['neutral','happiness','surprise','sadness','anger','disgust','fear','contempt'];
+const MP_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
+const MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
+const HF_MODEL = 'https://huggingface.co/onnxmodelzoo/emotion-ferplus-8/resolve/main/emotion-ferplus-8.onnx';
+const MSG = {
+  idle: '',
+  'loading-models': 'Loading face and expression models. The first load can take a few seconds.',
+  'requesting-camera': 'Waiting for camera permission. Choose Allow in the browser prompt.',
+  'camera-denied': 'Camera permission was denied. Allow camera access in the browser address bar, then press Start camera.',
+  'camera-unavailable': 'No usable camera was found. Connect a camera and press Start camera.',
+  'camera-busy': 'The camera is being used by another app. Close it and press Start camera.',
+  'models-failed': 'The models could not be loaded.',
+  running: '',
+};
+const zero = () => Object.fromEntries(LABELS.map((l) => [l, 0]));
+
+let args = { loginSeconds: 3, promptSeconds: 10, promptLabels: ['sadness','anger','fear'], modelUrl: './emotion-ferplus-8.onnx', active: true };
+let detector = null, session = null, stream = null, timer = null;
+let running = false, busy = false, loggedIn = false, faceDetected = false;
+let faceSecs = 0, lastTick = 0, lastExpr = 0, lastKey = '', lastPeriodic = 0;
+let totals = zero(), expression = null, status = 'idle', error = '', prompt = null, promptAction = null;
+
+function post(type, data) { window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, '*'); }
+function resize() { post('streamlit:setFrameHeight', { height: document.documentElement.scrollHeight + 8 }); }
+
+function publish(force = false) {
+  const key = JSON.stringify([status, loggedIn, prompt, promptAction]);
+  const now = Date.now();
+  if (!force && key === lastKey && !(loggedIn && now - lastPeriodic > 20000)) return;
+  lastKey = key; lastPeriodic = now;
+  const rounded = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, Math.round(v * 10) / 10]));
+  post('streamlit:setComponentValue', {
+    value: { status, loggedIn, faceDetected, expression, totals: rounded, prompt, promptAction, error },
+    dataType: 'json',
+  });
+}
+
+function ui(progress = 0) {
+  const busyNow = status === 'loading-models' || status === 'requesting-camera';
+  $('v').style.display = status === 'running' ? 'block' : 'none';
+  $('consentRow').hidden = running;
+  $('go').hidden = running; $('go').disabled = !$('consent').checked || busyNow;
+  $('stop').hidden = !running;
+  $('bar').hidden = !(running && !loggedIn);
+  $('fill').style.width = `${progress * 100}%`;
+  $('chip').textContent = running
+    ? (faceDetected ? 'Face detected' : 'No face detected') + (loggedIn && expression ? ` · ${expression.label}` : '')
+    : '';
+  $('msg').textContent = (MSG[status] || '') + (status === 'models-failed' || status === 'camera-unavailable' ? ` ${error}` : '');
+  $('msg').className = ['camera-denied', 'models-failed'].includes(status) ? 'bad' : '';
+  $('prompt').hidden = !prompt;
+  if (prompt) $('promptText').textContent = `A facial expression that looks like "${prompt}" was seen for a while. This is only an estimate from the camera. Would you like to talk to the support assistant?`;
+  resize();
+}
+
+async function loadModels() {
+  if (!detector) {
+    const fs = await FilesetResolver.forVisionTasks(MP_WASM);
+    detector = await FaceDetector.createFromOptions(fs, {
+      baseOptions: { modelAssetPath: MP_MODEL, delegate: 'CPU' },
+      runningMode: 'VIDEO', minDetectionConfidence: 0.6,
+    });
+  }
+  if (!session) {
+    ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+    ort.env.wasm.numThreads = 1;
+    let lastErr;
+    for (const u of [args.modelUrl, HF_MODEL]) {
+      try { session = await ort.InferenceSession.create(u, { executionProviders: ['wasm'] }); break; }
+      catch (e) { lastErr = e; }
+    }
+    if (!session) throw new Error('Expression model could not be loaded: ' + (lastErr && lastErr.message));
+  }
+}
+
+async function classify(video, box) {
+  const ctx = $('c').getContext('2d', { willReadFrequently: true });
+  const pad = 0.1;
+  const sx = Math.max(0, box.originX - box.width * pad), sy = Math.max(0, box.originY - box.height * pad);
+  const sw = Math.min(video.videoWidth - sx, box.width * (1 + 2 * pad)), sh = Math.min(video.videoHeight - sy, box.height * (1 + 2 * pad));
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, 64, 64);
+  const d = ctx.getImageData(0, 0, 64, 64).data;
+  const input = new Float32Array(4096);
+  for (let i = 0; i < 4096; i++) input[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  const out = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', input, [1, 1, 64, 64]) });
+  const logits = Array.from(out[session.outputNames[0]].data);
+  const mx = Math.max(...logits), ex = logits.map((v) => Math.exp(v - mx)), sum = ex.reduce((a, b) => a + b, 0);
+  const probs = ex.map((v) => v / sum), best = probs.indexOf(Math.max(...probs));
+  return { label: LABELS[best], score: probs[best] };
+}
+
+async function tick() {
+  if (!running) return;
+  const now = performance.now(), dt = (now - lastTick) / 1000; lastTick = now;
+  const video = $('v');
+  try {
+    if (video.readyState >= 2) {
+      const det = detector.detectForVideo(video, now).detections[0];
+      if (det) {
+        faceDetected = true; faceSecs += dt;
+        if (!loggedIn) {
+          if (faceSecs >= args.loginSeconds) { loggedIn = true; lastExpr = now; }
+        } else if (!busy && now - lastExpr >= 500) {
+          busy = true;
+          const elapsed = (now - lastExpr) / 1000; lastExpr = now;
+          try {
+            expression = await classify(video, det.boundingBox);
+            totals[expression.label] += elapsed;
+            if (args.promptLabels.includes(expression.label) && totals[expression.label] >= args.promptSeconds && !prompt) {
+              totals[expression.label] = 0; prompt = expression.label; promptAction = null;
+            }
+          } finally { busy = false; }
+        }
+      } else {
+        faceDetected = false; faceSecs = 0;
+        if (loggedIn) lastExpr = now;
+      }
+      ui(Math.min(faceSecs / args.loginSeconds, 1));
+      publish();
+    }
+  } catch (e) { console.error(e); }
+  timer = setTimeout(tick, 120);
+}
+
+async function start() {
+  error = ''; status = 'loading-models'; ui();
+  try { await loadModels(); } catch (e) { status = 'models-failed'; error = e.message; ui(); publish(true); return; }
+  status = 'requesting-camera'; ui();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    $('v').srcObject = stream; await $('v').play();
+  } catch (e) {
+    status = { NotAllowedError: 'camera-denied', NotFoundError: 'camera-unavailable', OverconstrainedError: 'camera-unavailable', NotReadableError: 'camera-busy' }[e.name] || 'camera-unavailable';
+    error = e.message; ui(); publish(true); return;
+  }
+  running = true; lastTick = performance.now(); status = 'running'; ui(); publish(true); tick();
+}
+
+function stop() {
+  running = false; clearTimeout(timer);
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  stream = null; $('v').srcObject = null;
+  loggedIn = false; faceDetected = false; faceSecs = 0; totals = zero(); expression = null; prompt = null; promptAction = null;
+  status = 'idle'; ui(); publish(true);
+}
+
+$('consent').addEventListener('change', () => ui());
+$('go').addEventListener('click', start);
+$('stop').addEventListener('click', stop);
+$('accept').addEventListener('click', () => { promptAction = 'accepted'; prompt = null; ui(); publish(true); });
+$('dismiss').addEventListener('click', () => { promptAction = 'dismissed'; prompt = null; ui(); publish(true); });
+
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'streamlit:render') {
+    args = { ...args, ...(e.data.args || {}) };
+    if (args.active === false && running) stop();
+    resize();
+  }
+});
+post('streamlit:componentReady', { apiVersion: 1 });
+ui();
+</script>
+</body>
+</html>
