@@ -1,3 +1,4 @@
+import runpy
 import streamlit as st
 from streamlit_webrtc import webrtc_streamer
 from streamlit_autorefresh import st_autorefresh
@@ -10,15 +11,16 @@ st.set_page_config(
 
 from modules.face_login import FaceDetectionProcessor
 
-# Session flags are deliberately limited to this browser session.
 st.session_state.setdefault("cosmo_authenticated", False)
 st.session_state.setdefault("cosmo_camera_requested", False)
+st.session_state.setdefault("cosmo_selected_page", "Mission Overview")
 
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
 
-# Keep the webcam component in the same location on every page so that the
-# browser camera stream remains active while the user navigates the app.
+# Keep the WebRTC component mounted on this single Streamlit page.
+# st.navigation() changes the active page hash and can terminate WebRTC workers
+# when the user enters a multipage route. We use in-page routing below instead.
 with st.sidebar:
     st.markdown("## 🛰️ Mission access")
     st.caption("Face-presence demo login")
@@ -38,15 +40,14 @@ with st.sidebar:
                 "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
             },
             async_processing=True,
+            # Keep the stream active across Streamlit script reruns, including login.
+            desired_playing_state=True,
         )
 
         if camera_ctx.state.playing:
-            # Refresh the Python UI to read the latest thread-safe detector state.
             st_autorefresh(interval=1000, key="cosmo-camera-status-refresh")
-
             processor = camera_ctx.video_processor
             if processor:
-                # Expression inference is enabled only after the demo login succeeds.
                 processor.set_expression_enabled(st.session_state.cosmo_authenticated)
                 (
                     face_detected,
@@ -66,14 +67,13 @@ with st.sidebar:
             if st.session_state.cosmo_authenticated:
                 st.success("Demo session active")
                 st.caption("Face presence is not required to remain logged in.")
-
                 st.markdown("### 🙂 Live expression estimate")
                 if face_detected:
                     if expression_status == "ready":
                         st.metric("Visible expression", expression_label)
                         st.caption(
                             f"Model score: {expression_confidence:.0%}. "
-                            "This is an estimate, not a measure of actual emotion."
+                            "This is a visual estimate, not a measure of actual emotion."
                         )
                     elif expression_status == "loading":
                         st.info("Loading the expression model…")
@@ -90,13 +90,14 @@ with st.sidebar:
                 if st.button("Log out", use_container_width=True):
                     st.session_state.cosmo_authenticated = False
                     st.session_state.cosmo_camera_requested = False
+                    st.session_state.cosmo_selected_page = "Mission Overview"
                     st.rerun()
             elif login_ready:
                 st.success("Face check passed. You can now enter Cosmo Care.")
                 st.caption("You do not need to keep your face in the camera.")
                 if st.button("Enter Cosmo Care", type="primary", use_container_width=True):
+                    # The button event already causes a rerun; do not force a second one.
                     st.session_state.cosmo_authenticated = True
-                    st.rerun()
             elif face_detected:
                 st.info(
                     f"Keep your face visible briefly: "
@@ -104,15 +105,11 @@ with st.sidebar:
                 )
             else:
                 st.warning("No face currently detected. Look towards the camera.")
-
         else:
-            st.warning(
-                "Camera is not streaming. Check browser permission and press START "
-                "in the camera panel."
-            )
-            if st.button("Cancel camera", use_container_width=True):
-                st.session_state.cosmo_camera_requested = False
-                st.rerun()
+            # desired_playing_state=True will start/restart the stream automatically.
+            # Do not tell an authenticated user to press START after a normal rerun.
+            st_autorefresh(interval=1500, key="cosmo-camera-reconnect-refresh")
+            st.info("Connecting to your camera… If this takes more than a few seconds, check browser camera permission and network access.")
 
     st.divider()
     st.caption(
@@ -134,12 +131,16 @@ if not st.session_state.cosmo_authenticated:
     )
 else:
     st.success("Welcome to the Cosmo Care mission console.")
-    pages = [
-        st.Page("home.py", title="Mission Overview", icon="🏠", default=True),
-        st.Page("pages/radiation_monitoring.py", title="Radiation Monitoring", icon="☢️"),
-        st.Page("pages/crew_environment.py", title="Crew & Environment", icon="🫀"),
-        st.Page("pages/personalized_health.py", title="Personalized Health", icon="🥗"),
-        st.Page("pages/reports_and_data.py", title="Reports & Data", icon="📊"),
-    ]
-    navigation = st.navigation(pages, position="sidebar", expanded=True)
-    navigation.run()
+    page_options = {
+        "Mission Overview": "home.py",
+        "Radiation Monitoring": "pages/radiation_monitoring.py",
+        "Crew & Environment": "pages/crew_environment.py",
+        "Personalized Health": "pages/personalized_health.py",
+        "Reports & Data": "pages/reports_and_data.py",
+    }
+    selected_page = st.sidebar.radio(
+        "Mission workspace",
+        list(page_options.keys()),
+        key="cosmo_selected_page",
+    )
+    runpy.run_path(page_options[selected_page])
