@@ -111,10 +111,17 @@ with st.sidebar:
             else:
                 st.warning("No face currently detected. Look towards the camera.")
         else:
-            # Keep the session UI responsive while WebRTC reconnects. Logout remains
-            # available above, even when this stream is temporarily disconnected.
-            st_autorefresh(interval=1500, key="cosmo-camera-reconnect-refresh")
-            st.info("Connecting to your camera… If this takes more than a few seconds, check browser camera permission and network access.")
+            # Do not force rapid Streamlit reruns during SDP/ICE negotiation:
+            # repeated reruns can interrupt the WebRTC offer/answer handshake.
+            # streamlit-webrtc emits component updates as signalling/playing changes.
+            if camera_ctx.state.signalling:
+                st.info("Establishing the camera connection… Please allow a few seconds.")
+            else:
+                st.warning(
+                    "The camera stream is not active yet. Check browser camera permission "
+                    "and the START control in the camera panel. If it still cannot connect, "
+                    "the current network may require TURN relay settings."
+                )
 
     st.divider()
     st.caption(
