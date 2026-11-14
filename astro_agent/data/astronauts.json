@@ -1,0 +1,51 @@
+[
+  {
+    "id": "A001",
+    "name": "Demo Astronaut One",
+    "age": 38,
+    "sex": "female",
+    "height_cm": 168,
+    "weight_kg": 62,
+    "fitness_level": "high",
+    "injuries": [],
+    "dietary_restrictions": [],
+    "allergies": [],
+    "mission_duration_days": 180
+  },
+  {
+    "id": "A002",
+    "name": "Demo Astronaut Two",
+    "age": 45,
+    "sex": "male",
+    "height_cm": 180,
+    "weight_kg": 92,
+    "fitness_level": "moderate",
+    "injuries": [
+      "lower_back"
+    ],
+    "dietary_restrictions": [
+      "vegetarian"
+    ],
+    "allergies": [
+      "nuts"
+    ],
+    "mission_duration_days": 500
+  },
+  {
+    "id": "A003",
+    "name": "Maleesha Dissanayake",
+    "age": 21,
+    "sex": "male",
+    "height_cm": 180.0,
+    "weight_kg": 70.0,
+    "fitness_level": "high",
+    "injuries": [
+      "knee"
+    ],
+    "dietary_restrictions": [],
+    "allergies": [],
+    "medical_conditions": [],
+    "medications": [],
+    "mission_duration_days": 365
+  }
+]

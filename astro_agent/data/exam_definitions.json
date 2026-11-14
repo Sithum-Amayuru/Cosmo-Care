@@ -1,0 +1,189 @@
+{
+  "note": "DEMO reference ranges. Replace with the flight surgeon's own limits. normal_min / normal_max / abnormal / normal_values decide what is flagged. valid_min / valid_max only reject impossible typing mistakes.",
+  "exams": [
+    {
+      "id": "ultrasound_eye",
+      "name": "Ultrasound - eyes (optic nerve)",
+      "where": "on-board, remote guidance from ground doctors",
+      "review": "Ophthalmology / flight surgeon review",
+      "fields": [
+        {"name": "optic_nerve_sheath_mm", "label": "Optic nerve sheath diameter", "unit": "mm", "type": "number", "normal_max": 5.8, "valid_min": 2, "valid_max": 10}
+      ]
+    },
+    {
+      "id": "ultrasound_neck_head_vessels",
+      "name": "Ultrasound - neck and head blood vessels",
+      "where": "on-board, remote guidance from ground doctors",
+      "review": "Flight surgeon / vascular review",
+      "fields": [
+        {"name": "jugular_flow", "label": "Jugular vein flow", "type": "choice", "choices": ["normal", "slow", "stagnant", "reversed"], "abnormal": ["slow", "stagnant", "reversed"]},
+        {"name": "head_vessel_flow", "label": "Head vessel flow", "type": "choice", "choices": ["normal", "reduced", "abnormal"], "abnormal": ["reduced", "abnormal"]}
+      ]
+    },
+    {
+      "id": "ultrasound_heart",
+      "name": "Ultrasound - heart",
+      "where": "on-board, remote guidance from ground doctors",
+      "review": "Cardiology / flight surgeon review",
+      "fields": [
+        {"name": "lvef_pct", "label": "Left ventricular ejection fraction", "unit": "%", "type": "number", "normal_min": 50, "normal_max": 75, "valid_min": 10, "valid_max": 90},
+        {"name": "pericardial_effusion", "label": "Pericardial effusion seen", "type": "choice", "choices": ["no", "yes"], "abnormal": ["yes"]}
+      ]
+    },
+    {
+      "id": "ultrasound_muscle",
+      "name": "Ultrasound - muscle",
+      "where": "on-board, remote guidance from ground doctors",
+      "review": "Flight surgeon / exercise physiologist review",
+      "fields": [
+        {"name": "muscle_thickness_change_pct", "label": "Muscle thickness change from baseline", "unit": "%", "type": "number", "normal_min": -10, "valid_min": -60, "valid_max": 60}
+      ]
+    },
+    {
+      "id": "ultrasound_kidney",
+      "name": "Ultrasound - kidneys (stones)",
+      "where": "on-board, and again after return",
+      "review": "Flight surgeon / urology review",
+      "fields": [
+        {"name": "kidney_stones_found", "label": "Kidney stones found", "type": "choice", "choices": ["no", "yes"], "abnormal": ["yes"]},
+        {"name": "largest_stone_mm", "label": "Largest stone", "unit": "mm", "type": "number", "valid_min": 0, "valid_max": 30}
+      ]
+    },
+    {
+      "id": "eye_exam",
+      "name": "Eye exam (OCT, retinal photos, visual acuity)",
+      "where": "on-board",
+      "review": "Ophthalmology / flight surgeon review",
+      "fields": [
+        {"name": "visual_acuity_decimal", "label": "Visual acuity (1.0 = 20/20)", "type": "number", "normal_min": 0.8, "valid_min": 0.05, "valid_max": 2.0},
+        {"name": "oct_central_thickness_um", "label": "OCT central retinal thickness", "unit": "um", "type": "number", "normal_min": 220, "normal_max": 320, "valid_min": 100, "valid_max": 600},
+        {"name": "optic_disc_swelling", "label": "Optic disc swelling seen", "type": "choice", "choices": ["no", "yes"], "abnormal": ["yes"]},
+        {"name": "retinal_findings", "label": "Retinal photo findings (type 'none' if clear)", "type": "text", "normal_values": ["none", "normal"]}
+      ]
+    },
+    {
+      "id": "blood_pressure_heart",
+      "name": "Blood pressure and heart monitoring",
+      "where": "on-board and wearable devices",
+      "review": "Cardiology / flight surgeon review",
+      "fields": [
+        {"name": "resting_hr_bpm", "label": "Resting heart rate", "unit": "bpm", "type": "number", "normal_min": 50, "normal_max": 100, "valid_min": 25, "valid_max": 220},
+        {"name": "resting_systolic_mmhg", "label": "Resting systolic pressure", "unit": "mmHg", "type": "number", "normal_min": 90, "normal_max": 139, "valid_min": 60, "valid_max": 260},
+        {"name": "resting_diastolic_mmhg", "label": "Resting diastolic pressure", "unit": "mmHg", "type": "number", "normal_min": 60, "normal_max": 89, "valid_min": 30, "valid_max": 160},
+        {"name": "exercise_peak_hr_bpm", "label": "Peak heart rate during exercise", "unit": "bpm", "type": "number", "valid_min": 40, "valid_max": 230},
+        {"name": "exercise_peak_systolic_mmhg", "label": "Peak systolic pressure during exercise", "unit": "mmHg", "type": "number", "valid_min": 80, "valid_max": 300}
+      ]
+    },
+    {
+      "id": "symptom_report",
+      "name": "Daily symptom report and questionnaire",
+      "where": "on-board",
+      "review": "Flight surgeon review",
+      "fields": [
+        {"name": "nausea_0_10", "label": "Nausea rating (0 none - 10 worst)", "type": "int", "normal_max": 6, "valid_min": 0, "valid_max": 10},
+        {"name": "dizziness_0_10", "label": "Dizziness rating (0 none - 10 worst)", "type": "int", "normal_max": 6, "valid_min": 0, "valid_max": 10},
+        {"name": "sleep_hours", "label": "Sleep last night", "unit": "h", "type": "number", "normal_min": 6, "valid_min": 0, "valid_max": 14},
+        {"name": "mood_0_10", "label": "Mood rating (0 very low - 10 very good)", "type": "int", "normal_min": 4, "valid_min": 0, "valid_max": 10}
+      ]
+    },
+    {
+      "id": "balance_cognitive",
+      "name": "Balance, coordination and cognitive tests",
+      "where": "on-board laptop tasks",
+      "review": "Flight surgeon / neurology review",
+      "fields": [
+        {"name": "reaction_time_ms", "label": "Reaction time", "unit": "ms", "type": "number", "normal_max": 350, "valid_min": 100, "valid_max": 2000},
+        {"name": "hand_eye_accuracy_pct", "label": "Hand-eye task accuracy", "unit": "%", "type": "number", "normal_min": 80, "valid_min": 0, "valid_max": 100},
+        {"name": "balance_hold_sec", "label": "Single-leg balance hold", "unit": "s", "type": "number", "normal_min": 20, "valid_min": 0, "valid_max": 120},
+        {"name": "cognitive_score_pct", "label": "Cognitive test score", "unit": "%", "type": "number", "normal_min": 80, "valid_min": 0, "valid_max": 100}
+      ]
+    },
+    {
+      "id": "blood_urine_onboard",
+      "name": "Blood and urine - simple on-board measurements",
+      "where": "on-board, crew collected",
+      "review": "Flight surgeon review",
+      "fields": [
+        {"name": "hemoglobin_g_dl", "label": "Hemoglobin", "unit": "g/dL", "type": "number", "normal_min": 12.0, "normal_max": 17.5, "valid_min": 4, "valid_max": 22},
+        {"name": "glucose_mg_dl", "label": "Glucose", "unit": "mg/dL", "type": "number", "normal_min": 70, "normal_max": 100, "valid_min": 20, "valid_max": 600},
+        {"name": "urine_specific_gravity", "label": "Urine specific gravity", "type": "number", "normal_min": 1.005, "normal_max": 1.030, "valid_min": 1.000, "valid_max": 1.060},
+        {"name": "urine_ph", "label": "Urine pH", "type": "number", "normal_min": 4.5, "normal_max": 8.0, "valid_min": 4, "valid_max": 9}
+      ]
+    },
+    {
+      "id": "exercise_monitoring",
+      "name": "Strength and exercise monitoring (machine data)",
+      "where": "exercise machines record force and workload",
+      "review": "Flight surgeon / exercise physiologist review",
+      "fields": [
+        {"name": "weekly_sessions_done", "label": "Exercise sessions done this week", "type": "int", "normal_min": 3, "valid_min": 0, "valid_max": 14},
+        {"name": "resistive_load_kg", "label": "Resistive load used", "unit": "kg", "type": "number", "valid_min": 0, "valid_max": 400},
+        {"name": "peak_force_n", "label": "Peak force", "unit": "N", "type": "number", "valid_min": 0, "valid_max": 5000},
+        {"name": "workload_kj", "label": "Total workload", "unit": "kJ", "type": "number", "valid_min": 0, "valid_max": 5000}
+      ]
+    },
+    {
+      "id": "fluid_shift",
+      "name": "Fluid shift studies (thigh cuffs, lower body negative pressure)",
+      "where": "on-board",
+      "review": "Flight surgeon review",
+      "fields": [
+        {"name": "leg_circumference_change_pct", "label": "Leg circumference change", "unit": "%", "type": "number", "valid_min": -20, "valid_max": 20},
+        {"name": "head_fullness_0_10", "label": "Head fullness rating (0 none - 10 worst)", "type": "int", "normal_max": 6, "valid_min": 0, "valid_max": 10},
+        {"name": "lbnp_tolerance_min", "label": "Lower body negative pressure tolerance", "unit": "min", "type": "number", "valid_min": 0, "valid_max": 60}
+      ]
+    },
+    {
+      "id": "dxa_bone",
+      "name": "Bone density scan (DXA or CT)",
+      "where": "ground (before and after flight) - assumed available here",
+      "review": "Flight surgeon / bone health review",
+      "fields": [
+        {"name": "spine_tscore", "label": "Spine T-score", "type": "number", "normal_min": -1.0, "valid_min": -6, "valid_max": 6},
+        {"name": "hip_tscore", "label": "Hip T-score", "type": "number", "normal_min": -1.0, "valid_min": -6, "valid_max": 6}
+      ]
+    },
+    {
+      "id": "mri",
+      "name": "MRI",
+      "where": "ground (before and after flight) - assumed available here",
+      "review": "Radiology / flight surgeon review",
+      "fields": [
+        {"name": "mri_result", "label": "MRI overall result", "type": "choice", "choices": ["normal", "abnormal"], "abnormal": ["abnormal"]},
+        {"name": "mri_notes", "label": "MRI notes", "type": "text"}
+      ]
+    },
+    {
+      "id": "lab_blood_urine",
+      "name": "Detailed blood and urine analysis",
+      "where": "ground lab (samples frozen and returned) - assumed available here",
+      "review": "Flight surgeon / laboratory review",
+      "fields": [
+        {"name": "vitamin_d_ng_ml", "label": "Vitamin D", "unit": "ng/mL", "type": "number", "normal_min": 30, "valid_min": 1, "valid_max": 200},
+        {"name": "serum_calcium_mg_dl", "label": "Serum calcium", "unit": "mg/dL", "type": "number", "normal_min": 8.5, "normal_max": 10.5, "valid_min": 5, "valid_max": 15},
+        {"name": "creatinine_mg_dl", "label": "Creatinine", "unit": "mg/dL", "type": "number", "normal_min": 0.6, "normal_max": 1.3, "valid_min": 0.1, "valid_max": 10},
+        {"name": "urine_calcium_mg_24h", "label": "Urine calcium (24 h)", "unit": "mg", "type": "number", "normal_max": 300, "valid_min": 0, "valid_max": 1000}
+      ]
+    },
+    {
+      "id": "tilt_table",
+      "name": "Tilt-table test",
+      "where": "ground (after landing) - assumed available here",
+      "review": "Cardiology / flight surgeon review",
+      "fields": [
+        {"name": "orthostatic_hr_rise_bpm", "label": "Heart rate rise when tilted", "unit": "bpm", "type": "number", "normal_max": 30, "valid_min": 0, "valid_max": 100},
+        {"name": "orthostatic_sbp_drop_mmhg", "label": "Systolic pressure drop when tilted", "unit": "mmHg", "type": "number", "normal_max": 20, "valid_min": -40, "valid_max": 100}
+      ]
+    },
+    {
+      "id": "obstacle_course",
+      "name": "Obstacle-course test",
+      "where": "ground (after landing) - assumed available here",
+      "review": "Flight surgeon / neurology review",
+      "fields": [
+        {"name": "course_time_sec", "label": "Course completion time", "unit": "s", "type": "number", "valid_min": 5, "valid_max": 600},
+        {"name": "time_change_vs_baseline_pct", "label": "Time change vs pre-flight baseline (positive = slower)", "unit": "%", "type": "number", "normal_max": 20, "valid_min": -50, "valid_max": 300}
+      ]
+    }
+  ]
+}
