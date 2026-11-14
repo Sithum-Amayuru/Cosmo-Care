@@ -13,6 +13,7 @@ DEFAULT = {
     "totals": {},
     "prompt": None,
     "promptAction": None,
+    "moodEvent": None,
     "error": "",
 }
 
