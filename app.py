@@ -4,11 +4,15 @@ import plotly.express as px
 from datetime import datetime
 from modules.radiation_monitor import make_reading, analyze_readings
 from modules.astronaut_health import render_astronaut_health
+from ui_theme import apply_theme, render_hero, render_navigation
 
-st.set_page_config(page_title="COSMO CARE", page_icon="🛰️", layout="wide")
+st.set_page_config(page_title="COSMO CARE | Mission Control", page_icon="🛰️", layout="wide", initial_sidebar_state="expanded")
+apply_theme()
 
-st.title("🛰️ COSMO CARE")
-st.caption("Astronaut health and mission-environment monitoring — prototype MVP")
+render_hero()
+render_navigation()
+st.markdown("## Mission overview")
+st.caption("Unified astronaut health and mission-environment monitoring console")
 
 st.warning(
     "Prototype only. This app uses manually entered / illustrative demo readings. "
@@ -55,7 +59,7 @@ with st.sidebar:
     humidity_max = st.number_input("Maximum humidity (%)", min_value=0.0, max_value=100.0, value=60.0, disabled=not use_humidity)
 
 
-st.header("1. Radiation detector input")
+st.header("◎  Radiation monitoring")
 st.caption("Generic detector interface: enter the event count rate reported by the detector. CPS is not a dose measurement.")
 if "radiation_history" not in st.session_state:
     st.session_state.radiation_history = []
@@ -118,7 +122,7 @@ else:
 
 st.warning("CPS is an instrument count rate, not dose rate or absorbed dose. Do not convert CPS to µSv/h without detector-specific calibration.")
 
-st.header("2. Current readings")
+st.header("♡  Crew & environment readings")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -134,7 +138,7 @@ with col2:
     humidity = st.number_input("Humidity (%)", min_value=0.0, max_value=100.0, value=45.0)
     pressure = st.number_input("Pressure (kPa)", min_value=0.0, value=101.0)
 st.divider()
-st.header("2. Monitoring overview")
+st.header("◈  Live monitoring overview")
 
 m1, m2, m3 = st.columns(3)
 m1.metric("Heart rate", f"{heart_rate:.1f} bpm", f"{heart_rate - baseline_hr:+.1f} vs baseline")
@@ -174,7 +178,7 @@ if not any([use_co2, use_o2, use_temp, use_humidity]):
 if not st.session_state.radiation_history:
     observations.append("No radiation detector readings have been recorded yet.")
 
-st.subheader("3. Alerts and explanations")
+st.subheader("⚑  Alerts and explanations")
 if alerts:
     for category, title, explanation in alerts:
         st.error(f"**{category}: {title}**\n\n{explanation}")
@@ -186,7 +190,7 @@ for item in observations:
 st.caption("Alerts are rule-triggered observations, not diagnoses or autonomous instructions. The system does not infer causation between simultaneous readings.")
 
 st.divider()
-st.header("4. Current measurement record")
+st.header("▤  Current measurement record")
 record = {
     "timestamp": datetime.now().isoformat(timespec="seconds"),
     "astronaut_id": astronaut_id,
@@ -213,7 +217,7 @@ st.download_button(
 )
 
 st.divider()
-st.subheader("5. Reference basis")
+st.subheader("Reference basis")
 st.markdown(
     "- NASA HRP Hazards: space radiation, isolation/confinement, gravity fields and hostile/closed environments.\n"
     "- NASA HRP Risks: health consequences that motivate monitoring.\n"
@@ -225,5 +229,5 @@ st.caption("The five references provide rationale and context; they do not suppl
 
 
 st.divider()
-st.header("6. Astronaut Health & Personalisation")
+st.header("✚  Astronaut health & personalisation")
 render_astronaut_health()
