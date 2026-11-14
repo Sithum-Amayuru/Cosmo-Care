@@ -18,8 +18,8 @@ import json
 import shutil
 from pathlib import Path
 
-import agent
-from add_astronaut import ask_text, ask_number, ask_choice, ask_list, known_keywords
+from . import agent
+from .add_astronaut import ask_text, ask_number, ask_choice, ask_list, known_keywords
 
 DATA = Path(__file__).parent / "data"
 KB_FILE = DATA / "knowledge_base.json"
