@@ -19,7 +19,23 @@ a.metric("Radiation readings", radiation_count)
 b.metric("Crew / environment records", crew_records)
 c.metric("Demo astronaut profiles", health_profiles)
 st.markdown("### Explore Cosmo Care")
-st.markdown("Use the page navigation in the **left sidebar** to open each workspace.")
+st.markdown("Choose a workspace below to open its tools.")
+nav_cols = st.columns(2)
+page_links = [
+    ("pages/1_☢️_Radiation_Monitoring.py", "Radiation monitoring", "☢️"),
+    ("pages/2_🫀_Crew_and_Environment.py", "Crew & environment", "🫀"),
+    ("pages/3_🥗_Personalized_Health.py", "Personalized health", "🥗"),
+    ("pages/4_📊_Reports_and_Data.py", "Reports & data", "📊"),
+]
+for i, (page, label, icon) in enumerate(page_links):
+    with nav_cols[i % 2]:
+        st.page_link(page, label=label, icon=icon, use_container_width=True)
+
+with st.sidebar:
+    st.markdown("## MISSION NAVIGATION")
+    st.page_link("app.py", label="Mission overview", icon="🏠")
+    for page, label, icon in page_links:
+        st.page_link(page, label=label, icon=icon)
 cards = [("☢️ Radiation monitoring", "Record detector CPS readings, inspect trends and review count-rate anomalies."), ("🫀 Crew & environment", "Enter crew physiological and spacecraft environmental readings."), ("🥗 Personalized health", "Manage astronaut profiles, explore tailored exercise and diet suggestions, and record examinations."), ("📊 Reports & data", "Review session records and export data for your demonstration.")]
 cols = st.columns(2)
 for i, (title, desc) in enumerate(cards):
