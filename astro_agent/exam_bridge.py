@@ -26,9 +26,8 @@ import json
 from datetime import date, datetime
 from pathlib import Path
 
-import agent
-import bridge
-from add_astronaut import ask_number
+from . import agent, bridge
+from .add_astronaut import ask_number
 
 HERE = Path(__file__).parent
 DATA = HERE / "data"
