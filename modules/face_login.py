@@ -26,19 +26,41 @@ class FaceDetectionProcessor(VideoProcessorBase):
         self._expression_confidence = 0.0
         self._expression_status = "disabled"
         self._frame_number = 0
+        self._model_loading = False
         self._classifier = FacialExpressionClassifier()
         self._cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
 
     def set_expression_enabled(self, enabled):
-        """Enable expression estimation only after the user has logged in."""
+        """Start model loading in the background only after demo login."""
         with self._lock:
             self._expression_enabled = bool(enabled)
             if not enabled:
                 self._expression_label = "Waiting"
                 self._expression_confidence = 0.0
                 self._expression_status = "disabled"
+                return
+            if self._classifier.ready:
+                self._expression_status = "ready"
+                return
+            if self._model_loading:
+                return
+            self._model_loading = True
+            self._expression_status = "loading"
+
+        threading.Thread(target=self._load_expression_model, daemon=True).start()
+
+    def _load_expression_model(self):
+        try:
+            self._classifier.load()
+            status = "ready"
+        except Exception as exc:
+            status = f"error:{type(exc).__name__}: {exc}"
+        with self._lock:
+            self._model_loading = False
+            if self._expression_enabled:
+                self._expression_status = status
 
     @property
     def face_status(self):
@@ -61,40 +83,27 @@ class FaceDetectionProcessor(VideoProcessorBase):
                 elapsed = 0.0
 
             return (
-                self._face_detected,
-                self._face_count,
-                self._login_ready,
-                elapsed,
-                self._expression_label,
-                self._expression_confidence,
-                self._expression_status,
+                self._face_detected, self._face_count, self._login_ready, elapsed,
+                self._expression_label, self._expression_confidence, self._expression_status,
             )
 
     def recv(self, frame):
         image = frame.to_ndarray(format="bgr24")
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         faces = self._cascade.detectMultiScale(
-            gray,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(70, 70),
+            gray, scaleFactor=1.1, minNeighbors=5, minSize=(70, 70),
         )
 
         now = time.monotonic()
         with self._lock:
             self._face_detected = len(faces) > 0
             self._face_count = len(faces)
-
             if len(faces) > 0:
                 if self._first_seen_at is None:
                     self._first_seen_at = now
                 self._last_seen_at = now
-
-                # Once the three-second check passes, it remains passed for
-                # this camera session even if later frames miss the face.
                 if now - self._first_seen_at >= self.REQUIRED_DETECTION_SECONDS:
                     self._login_ready = True
-
             elif (
                 not self._login_ready
                 and self._last_seen_at is not None
@@ -102,24 +111,18 @@ class FaceDetectionProcessor(VideoProcessorBase):
             ):
                 self._first_seen_at = None
                 self._last_seen_at = None
-
             expression_enabled = self._expression_enabled
+            expression_status = self._expression_status
 
         if len(faces) > 0:
-            # Use the largest detected face for the live expression estimate.
             x, y, w, h = max(faces, key=lambda box: box[2] * box[3])
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 220, 120), 2)
             cv2.putText(
-                image,
-                "FACE DETECTED",
-                (x, max(25, y - 10)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                (0, 220, 120),
-                2,
+                image, "FACE DETECTED", (x, max(25, y - 10)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 220, 120), 2,
             )
 
-            if expression_enabled:
+            if expression_enabled and expression_status == "ready":
                 self._frame_number += 1
                 if self._frame_number % self.EXPRESSION_EVERY_N_FRAMES == 0:
                     try:
@@ -127,29 +130,18 @@ class FaceDetectionProcessor(VideoProcessorBase):
                         with self._lock:
                             self._expression_label = label
                             self._expression_confidence = confidence
-                            self._expression_status = "ready"
                     except Exception as exc:
                         with self._lock:
-                            self._expression_status = f"error:{type(exc).__name__}"
+                            self._expression_status = f"error:{type(exc).__name__}: {exc}"
                 with self._lock:
                     label = self._expression_label
-                    status = self._expression_status
-                if status == "ready":
-                    cv2.putText(
-                        image,
-                        f"Expression estimate: {label}",
-                        (x, min(image.shape[0] - 10, y + h + 25)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.55,
-                        (255, 220, 0),
-                        2,
-                    )
-            else:
-                with self._lock:
-                    self._expression_status = "disabled"
+                cv2.putText(
+                    image, f"Expression estimate: {label}",
+                    (x, min(image.shape[0] - 10, y + h + 25)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 220, 0), 2,
+                )
         elif expression_enabled:
             with self._lock:
-                self._expression_status = "waiting_for_face"
                 self._expression_label = "Waiting"
                 self._expression_confidence = 0.0
 
