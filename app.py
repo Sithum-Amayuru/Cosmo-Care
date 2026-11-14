@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
+from modules.radiation_monitor import make_reading, analyze_readings
 
 st.set_page_config(page_title="COSMO CARE", page_icon="🛰️", layout="wide")
 
@@ -52,15 +53,73 @@ with st.sidebar:
     humidity_min = st.number_input("Minimum humidity (%)", min_value=0.0, max_value=100.0, value=30.0, disabled=not use_humidity)
     humidity_max = st.number_input("Maximum humidity (%)", min_value=0.0, max_value=100.0, value=60.0, disabled=not use_humidity)
 
-    st.divider()
-    st.subheader("Radiation alert configuration")
-    radiation_unit = st.text_input("Radiation measurement unit", "enter unit")
-    use_radiation_limit = st.checkbox("Enable radiation alert limit")
-    radiation_limit = st.number_input("Mission-defined radiation limit", min_value=0.0, value=0.0, disabled=not use_radiation_limit)
 
-st.header("1. Current readings")
+st.header("1. Radiation detector input")
+st.caption("Generic detector interface: enter the event count rate reported by the detector. CPS is not a dose measurement.")
+if "radiation_history" not in st.session_state:
+    st.session_state.radiation_history = []
 
-col1, col2, col3 = st.columns(3)
+rad_col1, rad_col2, rad_col3 = st.columns(3)
+with rad_col1:
+    detector_id = st.text_input("Detector ID", "RAD-01")
+    radiation_type = st.selectbox("Radiation type reported by detector", ["Unclassified", "Neutron", "Gamma", "Proton", "Other"])
+with rad_col2:
+    count_rate_cps = st.number_input("Count rate (counts/second)", min_value=0.0, value=10.0, step=1.0)
+    sensor_status = st.selectbox("Detector status", ["operational", "warning", "fault"])
+with rad_col3:
+    anomaly_multiplier = st.number_input("Anomaly multiplier", min_value=1.1, max_value=10.0, value=2.0, step=0.1,
+        help="Flags a latest count rate at least this multiple of the prior-history median. Statistical demo setting, not a safety limit.")
+    st.write("")
+    if st.button("Record detector reading", type="primary", use_container_width=True):
+        try:
+            new_reading = make_reading(
+                detector_id=detector_id,
+                count_rate_cps=count_rate_cps,
+                radiation_type=radiation_type,
+                sensor_status=sensor_status,
+                source=source_type,
+            )
+            st.session_state.radiation_history.append(new_reading)
+            st.success("Radiation reading recorded.")
+        except ValueError as exc:
+            st.error(str(exc))
+
+radiation_analysis = analyze_readings(
+    st.session_state.radiation_history,
+    anomaly_multiplier=anomaly_multiplier,
+)
+radiation_latest = radiation_analysis["latest_cps"] if radiation_analysis["latest_cps"] is not None else 0.0
+
+st.subheader("Radiation count-rate history")
+if st.session_state.radiation_history:
+    radiation_df = pd.DataFrame(st.session_state.radiation_history)
+    radiation_df["timestamp"] = pd.to_datetime(radiation_df["timestamp"], utc=True)
+    st.line_chart(radiation_df.set_index("timestamp")["count_rate_cps"], y_label="Counts per second (CPS)")
+    r1, r2, r3, r4 = st.columns(4)
+    r1.metric("Latest", f"{radiation_analysis['latest_cps']:g} CPS")
+    r2.metric("Average", f"{radiation_analysis['average_cps']:.2f} CPS")
+    r3.metric("Peak", f"{radiation_analysis['peak_cps']:g} CPS")
+    r4.metric("Recorded readings", radiation_analysis["count"])
+    if radiation_analysis["anomaly"]:
+        st.warning("Unusual count-rate increase detected. " + radiation_analysis["message"])
+    else:
+        st.info(radiation_analysis["message"])
+    if radiation_df["sensor_status"].iloc[-1] != "operational":
+        st.error("Latest detector status is not operational. Treat the measurement stream as potentially unreliable.")
+    st.download_button(
+        "Download radiation history as CSV",
+        data=radiation_df.to_csv(index=False).encode("utf-8"),
+        file_name="cosmo_care_radiation_history.csv",
+        mime="text/csv",
+    )
+else:
+    st.info("No detector readings recorded yet. Enter a reading above and select Record detector reading.")
+
+st.warning("CPS is an instrument count rate, not dose rate or absorbed dose. Do not convert CPS to µSv/h without detector-specific calibration.")
+
+st.header("2. Current readings")
+
+col1, col2 = st.columns(2)
 with col1:
     st.subheader("Astronaut health")
     heart_rate = st.number_input("Heart rate (bpm)", min_value=0.0, value=88.0)
@@ -73,20 +132,13 @@ with col2:
     temperature = st.number_input("Temperature (°C)", value=22.0)
     humidity = st.number_input("Humidity (%)", min_value=0.0, max_value=100.0, value=45.0)
     pressure = st.number_input("Pressure (kPa)", min_value=0.0, value=101.0)
-with col3:
-    st.subheader("Radiation")
-    radiation_reading = st.number_input("Radiation reading", min_value=0.0, value=0.5)
-    st.text_input("Reading unit", value=radiation_unit, disabled=True)
-    st.caption("A dose-rate value and a cumulative dose are different quantities. This MVP displays the entered reading only.")
-
 st.divider()
 st.header("2. Monitoring overview")
 
-m1, m2, m3, m4 = st.columns(4)
+m1, m2, m3 = st.columns(3)
 m1.metric("Heart rate", f"{heart_rate:.1f} bpm", f"{heart_rate - baseline_hr:+.1f} vs baseline")
 m2.metric("Sleep", f"{sleep_hours:.1f} h", f"{sleep_hours - baseline_sleep:+.1f} vs typical")
 m3.metric("CO₂", f"{co2:.0f} ppm")
-m4.metric("Radiation reading", f"{radiation_reading:g}", radiation_unit)
 
 alerts = []
 observations = []
@@ -111,13 +163,15 @@ if use_temp and not (temp_min <= temperature <= temp_max):
     alerts.append(("Environment", "Temperature outside configured range", f"Temperature ({temperature:.1f} °C) is outside the entered range ({temp_min:.1f}–{temp_max:.1f} °C)."))
 if use_humidity and not (humidity_min <= humidity <= humidity_max):
     alerts.append(("Environment", "Humidity outside configured range", f"Humidity ({humidity:.1f}%) is outside the entered range ({humidity_min:.1f}–{humidity_max:.1f}%)."))
-if use_radiation_limit and radiation_reading > radiation_limit:
-    alerts.append(("Radiation", "Radiation reading above configured limit", f"Entered radiation reading ({radiation_reading:g} {radiation_unit}) exceeds the entered limit ({radiation_limit:g} {radiation_unit}). Follow approved radiation-protection procedures."))
+if radiation_analysis["anomaly"]:
+    alerts.append(("Radiation", "Unusual count-rate increase", radiation_analysis["message"]))
+if st.session_state.radiation_history and st.session_state.radiation_history[-1]["sensor_status"] != "operational":
+    alerts.append(("Radiation", "Detector status requires attention", "The latest detector status is not operational. Verify the instrument and do not assume the reading stream is complete or reliable."))
 
 if not any([use_co2, use_o2, use_temp, use_humidity]):
     observations.append("Environmental thresholds are not configured. Readings are displayed but not classified as safe or unsafe.")
-if not use_radiation_limit:
-    observations.append("Radiation alert limit is not configured. The reading is displayed without a safety classification.")
+if not st.session_state.radiation_history:
+    observations.append("No radiation detector readings have been recorded yet.")
 
 st.subheader("3. Alerts and explanations")
 if alerts:
@@ -144,8 +198,8 @@ record = {
     "temperature_c": temperature,
     "humidity_percent": humidity,
     "pressure_kpa": pressure,
-    "radiation_reading": radiation_reading,
-    "radiation_unit": radiation_unit,
+    "radiation_latest_count_rate_cps": radiation_latest if radiation_analysis["count"] else None,
+    "radiation_recorded_readings": radiation_analysis["count"],
     "alert_count": len(alerts),
 }
 st.dataframe(pd.DataFrame([record]), use_container_width=True)
