@@ -19,6 +19,7 @@
 </style>
 </head>
 <body>
+<div id="root">
 <video id="v" muted playsinline></video>
 <canvas id="c" width="64" height="64" hidden></canvas>
 <div id="chip"></div>
@@ -30,6 +31,7 @@
 <div id="prompt" hidden>
   <p id="promptText"></p>
   <button id="accept">Talk to assistant</button><button id="dismiss" class="ghost">Not now</button>
+</div>
 </div>
 
 <script type="module">
@@ -59,7 +61,13 @@ let faceSecs = 0, lastTick = 0, lastExpr = 0, lastKey = '', lastPeriodic = 0;
 let totals = zero(), expression = null, status = 'idle', error = '', prompt = null, promptAction = null;
 
 function post(type, data) { window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, '*'); }
-function resize() { post('streamlit:setFrameHeight', { height: document.documentElement.scrollHeight + 8 }); }
+let lastH = 0;
+function resize() {
+  const h = Math.ceil($('root').getBoundingClientRect().height) + 24;
+  if (h === lastH) return;
+  lastH = h;
+  post('streamlit:setFrameHeight', { height: h });
+}
 
 function publish(force = false) {
   const key = JSON.stringify([status, loggedIn, prompt, promptAction]);
