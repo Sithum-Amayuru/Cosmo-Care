@@ -98,6 +98,15 @@ if not st.session_state.cosmo_authenticated:
 else:
     st.success("Welcome to the Cosmo Care mission console.")
 
+    # Manual companion access: astronauts can start a conversation at any time,
+    # independently of the camera's uncertain expression estimate.
+    if not st.session_state.cosmo_chat_open:
+        if st.button("💬 Talk to Cosmo", type="primary", key="cosmo_manual_chat"):
+            st.session_state.cosmo_chat_open = True
+            st.session_state.cosmo_pending_mood = None
+            st.session_state.cosmo_mood_checkin_started = False
+            st.rerun()
+
     if st.session_state.cosmo_chat_open:
         import os
 
@@ -116,11 +125,9 @@ else:
         st.markdown("### 💬 Cosmo Care companion")
         st.caption("A friendly conversation partner — not a mental-health diagnostic tool.")
 
-        # Start one gentle check-in only after the astronaut accepts the camera prompt.
-        if (
-            st.session_state.cosmo_pending_mood
-            and not st.session_state.cosmo_mood_checkin_started
-        ):
+        # Start one gentle greeting when the companion is opened, whether by
+        # accepting a camera prompt or by using the manual Talk to Cosmo button.
+        if not st.session_state.cosmo_mood_checkin_started:
             with st.spinner("Your companion is getting ready..."):
                 try:
                     opening = get_companion_response(
