@@ -22,10 +22,10 @@ st.markdown("### Explore Cosmo Care")
 st.markdown("Choose a workspace below to open its tools.")
 nav_cols = st.columns(2)
 page_links = [
-    ("pages/1_☢️_Radiation_Monitoring.py", "Radiation monitoring", "☢️"),
-    ("pages/2_🫀_Crew_and_Environment.py", "Crew & environment", "🫀"),
-    ("pages/3_🥗_Personalized_Health.py", "Personalized health", "🥗"),
-    ("pages/4_📊_Reports_and_Data.py", "Reports & data", "📊"),
+    ("pages/radiation_monitoring.py", "Radiation monitoring", "☢️"),
+    ("pages/crew_environment.py", "Crew & environment", "🫀"),
+    ("pages/personalized_health.py", "Personalized health", "🥗"),
+    ("pages/reports_and_data.py", "Reports & data", "📊"),
 ]
 for i, (page, label, icon) in enumerate(page_links):
     with nav_cols[i % 2]:
