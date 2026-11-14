@@ -9,6 +9,7 @@ st.set_page_config(
 # Explicitly register every page. This avoids relying on automatic page discovery.
 pages = [
     st.Page("home.py", title="Mission Overview", icon="🏠", default=True),
+    st.Page("pages/face_login.py", title="Face Detection Login (Test)", icon="📷"),
     st.Page("pages/radiation_monitoring.py", title="Radiation Monitoring", icon="☢️"),
     st.Page("pages/crew_environment.py", title="Crew & Environment", icon="🫀"),
     st.Page("pages/personalized_health.py", title="Personalized Health", icon="🥗"),
