@@ -2,15 +2,11 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from ui_theme import apply_theme
-
 st.set_page_config(page_title="Crew & Environment | COSMO CARE", page_icon="🫀", layout="wide")
 apply_theme()
 st.title("Crew & environment")
 st.caption("Enter physiological observations and spacecraft environmental measurements.")
-
-if "crew_readings" not in st.session_state:
-    st.session_state.crew_readings = []
-
+if "crew_readings" not in st.session_state: st.session_state.crew_readings = []
 with st.form("crew_environment_form"):
     st.subheader("Crew member")
     astronaut_id = st.text_input("Astronaut ID", "AST-001")
@@ -30,14 +26,8 @@ with st.form("crew_environment_form"):
         pressure = st.number_input("Pressure (kPa)", min_value=0.0, value=101.0)
     submitted = st.form_submit_button("Save observation", type="primary")
 if submitted:
-    st.session_state.crew_readings.append({
-        "timestamp": datetime.now().isoformat(timespec="seconds"), "astronaut_id": astronaut_id, "source": source,
-        "heart_rate_bpm": heart_rate, "sleep_hours": sleep, "activity_demo_index": activity,
-        "oxygen_percent": oxygen, "co2_ppm": co2, "temperature_c": temperature,
-        "humidity_percent": humidity, "pressure_kpa": pressure
-    })
+    st.session_state.crew_readings.append({"timestamp": datetime.now().isoformat(timespec="seconds"), "astronaut_id": astronaut_id, "source": source, "heart_rate_bpm": heart_rate, "sleep_hours": sleep, "activity_demo_index": activity, "oxygen_percent": oxygen, "co2_ppm": co2, "temperature_c": temperature, "humidity_percent": humidity, "pressure_kpa": pressure})
     st.success("Observation saved in this session.")
-
 if st.session_state.crew_readings:
     latest = st.session_state.crew_readings[-1]
     st.subheader("Latest recorded observation")
@@ -47,7 +37,5 @@ if st.session_state.crew_readings:
     x3.metric("CO₂", f'{latest["co2_ppm"]:.0f} ppm')
     st.dataframe(pd.DataFrame(st.session_state.crew_readings), use_container_width=True, hide_index=True)
     st.download_button("Export crew & environment records", pd.DataFrame(st.session_state.crew_readings).to_csv(index=False).encode("utf-8"), "cosmo_care_crew_environment.csv", "text/csv")
-else:
-    st.info("No crew or environment observations have been recorded in this session.")
-
-st.caption("These readings are demonstration inputs. This page does not diagnose medical conditions or determine spacecraft environmental safety.")
+else: st.info("No crew or environment observations have been recorded in this session.")
+st.caption("Demonstration inputs only. This page does not diagnose medical conditions or determine spacecraft environmental safety.")
