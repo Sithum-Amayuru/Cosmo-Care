@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from ui_theme import apply_theme
-st.set_page_config(page_title="Crew & Environment | COSMO CARE", page_icon="🫀", layout="wide")
 apply_theme()
 st.title("Crew & environment")
 st.caption("Enter physiological observations and spacecraft environmental measurements.")
