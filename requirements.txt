@@ -4,3 +4,4 @@ plotly>=5.18
 streamlit-webrtc>=0.47.7
 streamlit-autorefresh>=1.0.1
 opencv-python-headless>=4.8,<5
+numpy>=1.26
