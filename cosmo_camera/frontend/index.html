@@ -54,7 +54,7 @@ const MSG = {
 };
 const zero = () => Object.fromEntries(LABELS.map((l) => [l, 0]));
 
-let args = { loginSeconds: 3, promptSeconds: 10, promptConfidence: 0.70, promptCooldownSeconds: 300, promptLabels: ['sadness','anger','fear'], modelUrl: './emotion-ferplus-8.onnx', active: true };
+let args = { loginSeconds: 3, promptSeconds: 10, promptConfidence: 0.70, promptCooldownSeconds: 300, promptLabels: ['sadness','anger','fear','neutral'], modelUrl: './emotion-ferplus-8.onnx', active: true };
 let detector = null, session = null, stream = null, timer = null;
 let running = false, busy = false, loggedIn = false, faceDetected = false;
 let faceSecs = 0, lastTick = 0, lastExpr = 0, lastKey = '', lastPeriodic = 0;
@@ -97,7 +97,11 @@ function ui(progress = 0) {
   $('msg').textContent = (MSG[status] || '') + (status === 'models-failed' || status === 'camera-unavailable' ? ` ${error}` : '');
   $('msg').className = ['camera-denied', 'models-failed'].includes(status) ? 'bad' : '';
   $('prompt').hidden = !prompt;
-  if (prompt) $("promptText").textContent = `The camera has repeatedly estimated the facial expression "${prompt}". This is only an uncertain visual estimate, not a measure of how you feel. Would you like to talk with your companion?`;
+  if (prompt === "neutral") {
+    $("promptText").textContent = "Hey! Want to talk for a bit? No pressure — your companion is here whenever you want.";
+  } else if (prompt) {
+    $("promptText").textContent = `The camera has repeatedly estimated the facial expression "${prompt}". This is only an uncertain visual estimate, not a measure of how you feel. Would you like to talk with your companion?`;
+  }
   resize();
 }
 
