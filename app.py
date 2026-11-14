@@ -103,10 +103,10 @@ else:
 
     page_options = {
         "Mission Overview": "home.py",
-        "Radiation Monitoring": "pages/radiation_monitoring.py",
-        "Crew & Environment": "pages/crew_environment.py",
-        "Personalized Health": "pages/personalized_health.py",
-        "Reports & Data": "pages/reports_and_data.py",
+        "Radiation Monitoring": "views/radiation_monitoring.py",
+        "Crew & Environment": "views/crew_environment.py",
+        "Personalized Health": "views/personalized_health.py",
+        "Reports & Data": "views/reports_and_data.py",
     }
     selected_page = st.sidebar.radio(
         "Mission workspace",
