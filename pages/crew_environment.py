@@ -4,13 +4,6 @@ from datetime import datetime
 from ui_theme import apply_theme
 st.set_page_config(page_title="Crew & Environment | COSMO CARE", page_icon="🫀", layout="wide")
 apply_theme()
-with st.sidebar:
-    st.markdown("## MISSION NAVIGATION")
-    st.page_link("app.py", label="Mission overview", icon="🏠")
-    st.page_link("pages/radiation_monitoring.py", label="Radiation monitoring", icon="☢️")
-    st.page_link("pages/crew_environment.py", label="Crew & environment", icon="🫀")
-    st.page_link("pages/personalized_health.py", label="Personalized health", icon="🥗")
-    st.page_link("pages/reports_and_data.py", label="Reports & data", icon="📊")
 st.title("Crew & environment")
 st.caption("Enter physiological observations and spacecraft environmental measurements.")
 if "crew_readings" not in st.session_state: st.session_state.crew_readings = []
