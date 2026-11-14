@@ -25,6 +25,16 @@ with st.sidebar:
     st.markdown("## 🛰️ Mission access")
     st.caption("Face-presence demo login")
 
+    # Logout is independent of WebRTC connection state, so it remains available
+    # even if the camera temporarily disconnects.
+    if st.session_state.cosmo_authenticated:
+        st.success("Demo session active")
+        if st.button("Log out", key="cosmo_logout", use_container_width=True):
+            st.session_state.cosmo_authenticated = False
+            st.session_state.cosmo_camera_requested = False
+            st.session_state.cosmo_selected_page = "Mission Overview"
+            st.rerun()
+
     if not st.session_state.cosmo_camera_requested:
         st.info("Start the camera to check for a visible face.")
         if st.button("Start camera", type="primary", use_container_width=True):
@@ -87,11 +97,6 @@ with st.sidebar:
                 else:
                     st.info("No face currently visible. Expression estimates are paused.")
 
-                if st.button("Log out", use_container_width=True):
-                    st.session_state.cosmo_authenticated = False
-                    st.session_state.cosmo_camera_requested = False
-                    st.session_state.cosmo_selected_page = "Mission Overview"
-                    st.rerun()
             elif login_ready:
                 st.success("Face check passed. You can now enter Cosmo Care.")
                 st.caption("You do not need to keep your face in the camera.")
@@ -106,8 +111,8 @@ with st.sidebar:
             else:
                 st.warning("No face currently detected. Look towards the camera.")
         else:
-            # desired_playing_state=True will start/restart the stream automatically.
-            # Do not tell an authenticated user to press START after a normal rerun.
+            # Keep the session UI responsive while WebRTC reconnects. Logout remains
+            # available above, even when this stream is temporarily disconnected.
             st_autorefresh(interval=1500, key="cosmo-camera-reconnect-refresh")
             st.info("Connecting to your camera… If this takes more than a few seconds, check browser camera permission and network access.")
 
