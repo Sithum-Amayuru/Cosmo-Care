@@ -1,7 +1,6 @@
 import streamlit as st
 from ui_theme import apply_theme
 from modules.astronaut_health import render_astronaut_health
-
 st.set_page_config(page_title="Personalized Health | COSMO CARE", page_icon="🥗", layout="wide")
 apply_theme()
 st.title("Personalized astronaut health")
