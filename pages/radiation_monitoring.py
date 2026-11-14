@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from modules.radiation_monitor import make_reading, analyze_readings
 from ui_theme import apply_theme
-st.set_page_config(page_title="Radiation Monitoring | COSMO CARE", page_icon="☢️", layout="wide")
 apply_theme()
 st.title("Radiation monitoring")
 st.caption("Detector input, count-rate history and statistical anomaly review.")
