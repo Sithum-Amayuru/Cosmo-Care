@@ -10,6 +10,7 @@ st.set_page_config(
 )
 
 from modules.face_login import FaceDetectionProcessor
+from modules.turn_config import get_ice_servers
 
 st.session_state.setdefault("cosmo_authenticated", False)
 st.session_state.setdefault("cosmo_camera_requested", False)
@@ -17,6 +18,12 @@ st.session_state.setdefault("cosmo_selected_page", "Mission Overview")
 
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
+
+ice_servers, turn_enabled, turn_message = get_ice_servers()
+if turn_enabled:
+    st.sidebar.success("TURN relay configured")
+else:
+    st.sidebar.warning(turn_message)
 
 # Keep the WebRTC component mounted on this single Streamlit page.
 # st.navigation() changes the active page hash and can terminate WebRTC workers
@@ -46,9 +53,7 @@ with st.sidebar:
             key="cosmo-care-session-camera",
             video_processor_factory=FaceDetectionProcessor,
             media_stream_constraints={"video": True, "audio": False},
-            rtc_configuration={
-                "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-            },
+            rtc_configuration={"iceServers": ice_servers},
             async_processing=True,
             # Keep the stream active across Streamlit script reruns, including login.
             desired_playing_state=True,
