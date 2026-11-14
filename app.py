@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 from modules.radiation_monitor import make_reading, analyze_readings
+from modules.astronaut_health import render_astronaut_health
 
 st.set_page_config(page_title="COSMO CARE", page_icon="🛰️", layout="wide")
 
@@ -221,3 +222,8 @@ st.markdown(
     "- Canadian Space Agency space-science article: long-duration mission risks and the value of onboard capability when communication with Earth is delayed."
 )
 st.caption("The five references provide rationale and context; they do not supply this prototype with live astronaut measurements or operational alarm thresholds.")
+
+
+st.divider()
+st.header("6. Astronaut Health & Personalisation")
+render_astronaut_health()

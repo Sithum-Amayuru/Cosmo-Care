@@ -1,0 +1,212 @@
+[
+  {
+    "id": "ex_001",
+    "category": "exercise",
+    "name": "Resistive exercise (squat, deadlift, press, heel raise)",
+    "zones": ["leo", "cislunar", "deep_space"],
+    "target": ["bone density", "leg and back muscle"],
+    "frequency": "6 days/week",
+    "duration_min": 45,
+    "contraindications": ["lower_back", "knee"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_002",
+    "category": "exercise",
+    "name": "Treadmill running with harness",
+    "zones": ["leo", "cislunar", "deep_space"],
+    "target": ["cardiovascular fitness", "bone loading"],
+    "frequency": "3-6 days/week",
+    "duration_min": 30,
+    "contraindications": ["knee", "ankle"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_003",
+    "category": "exercise",
+    "name": "Cycle ergometer",
+    "zones": ["leo", "cislunar", "deep_space"],
+    "target": ["cardiovascular fitness", "leg endurance"],
+    "frequency": "3 days/week",
+    "duration_min": 30,
+    "contraindications": [],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_004",
+    "category": "exercise",
+    "name": "Balance drills for partial gravity",
+    "zones": ["lunar_surface", "mars_surface"],
+    "target": ["balance", "spatial awareness", "partial-gravity adaptation"],
+    "frequency": "daily",
+    "duration_min": 20,
+    "contraindications": [],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_005",
+    "category": "exercise",
+    "name": "Normal gravity training (bodyweight and weights)",
+    "zones": ["earth"],
+    "target": ["general fitness", "strength"],
+    "frequency": "4 days/week",
+    "duration_min": 45,
+    "contraindications": ["lower_back"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_006",
+    "category": "exercise",
+    "name": "Bodyweight interval circuit",
+    "zones": ["earth", "lunar_surface", "mars_surface"],
+    "target": ["interval conditioning", "whole-body strength"],
+    "frequency": "2-3 days/week",
+    "duration_min": 20,
+    "contraindications": ["lower_back", "knee"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_007",
+    "category": "exercise",
+    "name": "Agility and whole-body coordination course",
+    "zones": ["earth", "lunar_surface", "mars_surface"],
+    "target": ["agility", "coordination"],
+    "frequency": "2 days/week",
+    "duration_min": 15,
+    "contraindications": ["knee", "ankle"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_008",
+    "category": "exercise",
+    "name": "Hand-eye coordination and reaction drill",
+    "zones": ["earth", "lunar_surface", "mars_surface"],
+    "target": ["reaction time", "concentration"],
+    "frequency": "2 days/week",
+    "duration_min": 10,
+    "contraindications": [],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_009",
+    "category": "exercise",
+    "name": "Jumping (jump rope progression)",
+    "zones": ["earth", "lunar_surface", "mars_surface"],
+    "target": ["bone loading", "leg power"],
+    "frequency": "3 days/week",
+    "duration_min": 10,
+    "contraindications": ["knee", "ankle", "lower_back"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_010",
+    "category": "exercise",
+    "name": "Ground somersaults (movement and balance)",
+    "zones": ["earth", "lunar_surface", "mars_surface"],
+    "target": ["coordination", "flexibility", "balance"],
+    "frequency": "2 days/week",
+    "duration_min": 10,
+    "contraindications": ["neck", "lower_back"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_011",
+    "category": "exercise",
+    "name": "Loaded carries",
+    "zones": ["earth", "lunar_surface", "mars_surface"],
+    "target": ["grip", "trunk and leg strength", "exploration conditioning"],
+    "frequency": "2 days/week",
+    "duration_min": 15,
+    "contraindications": ["lower_back"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "ex_012",
+    "category": "exercise",
+    "name": "Rowing movement",
+    "zones": ["leo", "cislunar", "deep_space"],
+    "target": ["back and pulling strength"],
+    "frequency": "2-3 days/week",
+    "duration_min": 15,
+    "contraindications": ["lower_back"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "diet_001",
+    "category": "diet",
+    "name": "Vitamin D supplementation",
+    "zones": ["leo", "cislunar", "deep_space"],
+    "reason": "reduced sunlight exposure",
+    "notes": "Dose to be set by flight surgeon",
+    "excludes_restrictions": [],
+    "allergen_tags": [],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "diet_002",
+    "category": "diet",
+    "name": "Adequate calcium and protein intake",
+    "zones": ["earth", "leo", "cislunar", "deep_space", "lunar_surface", "mars_surface"],
+    "reason": "support bone and muscle maintenance",
+    "notes": "Tailor sources to dietary restrictions",
+    "excludes_restrictions": [],
+    "allergen_tags": [],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "diet_003",
+    "category": "diet",
+    "name": "Moderate sodium intake",
+    "zones": ["leo", "cislunar", "deep_space"],
+    "reason": "high sodium is linked to extra bone calcium loss",
+    "notes": "Prefer fresh or low-sodium items",
+    "excludes_restrictions": [],
+    "allergen_tags": [],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "diet_004",
+    "category": "diet",
+    "name": "Omega-3 rich foods (fish)",
+    "zones": ["leo", "cislunar", "deep_space"],
+    "reason": "possible benefit against radiation-related inflammation",
+    "notes": "Use algae-based alternative if vegetarian",
+    "excludes_restrictions": ["vegetarian", "vegan"],
+    "allergen_tags": ["fish"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "diet_005",
+    "category": "diet",
+    "name": "Algae-based omega-3 supplement",
+    "zones": ["leo", "cislunar", "deep_space"],
+    "reason": "omega-3 source for vegetarians",
+    "notes": "",
+    "excludes_restrictions": [],
+    "allergen_tags": [],
+    "requires_restrictions": ["vegetarian", "vegan"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "diet_006",
+    "category": "diet",
+    "name": "Nut and seed protein snacks",
+    "zones": ["earth", "leo", "cislunar", "deep_space", "lunar_surface", "mars_surface"],
+    "reason": "calorie-dense protein source",
+    "notes": "",
+    "excludes_restrictions": [],
+    "allergen_tags": ["nuts"],
+    "source": "PLACEHOLDER - replace with your researched source"
+  },
+  {
+    "id": "diet_007",
+    "category": "diet",
+    "name": "Hydration planning",
+    "zones": ["earth", "leo", "cislunar", "deep_space", "lunar_surface", "mars_surface"],
+    "reason": "fluid shift and reduced thirst signals",
+    "notes": "Scheduled drinking rather than waiting for thirst",
+    "excludes_restrictions": [],
+    "allergen_tags": [],
+    "source": "PLACEHOLDER - replace with your researched source"
+  }
+]

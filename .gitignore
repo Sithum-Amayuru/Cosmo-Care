@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime-generated astronaut data (never commit personal/medical records)
+astro_agent/data/medical_exams.json
+astro_agent/data/custom_items.json
+astro_agent/data/*.bak
