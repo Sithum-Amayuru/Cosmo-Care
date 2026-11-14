@@ -97,7 +97,7 @@ function ui(progress = 0) {
   $('msg').textContent = (MSG[status] || '') + (status === 'models-failed' || status === 'camera-unavailable' ? ` ${error}` : '');
   $('msg').className = ['camera-denied', 'models-failed'].includes(status) ? 'bad' : '';
   $('prompt').hidden = !prompt;
-  if (prompt) $("promptText").textContent = `The camera has repeatedly estimated an expression associated with "${prompt}". Facial expressions do not reliably reveal feelings, so this may be wrong. Would you like to talk with your companion?`;
+  if (prompt) $("promptText").textContent = `The camera has repeatedly estimated the facial expression "${prompt}". This is only an uncertain visual estimate, not a measure of how you feel. Would you like to talk with your companion?`;
   resize();
 }
 
