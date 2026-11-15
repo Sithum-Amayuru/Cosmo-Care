@@ -5,7 +5,8 @@ and must not be converted to dose without detector-specific calibration.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import random
 from statistics import median
 from typing import Any, Iterable
 
@@ -119,3 +120,73 @@ def analyze_readings(
         "anomaly": anomaly,
         "message": message,
     }
+
+
+
+def make_simulated_reading(
+    previous_readings: Iterable[dict[str, Any]],
+    scenario: str = "Normal orbital conditions",
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Generate one clearly-labelled synthetic radiation telemetry sample.
+
+    CPS values are illustrative detector-specific counts. Dose-rate values are
+    separately simulated; no CPS-to-dose conversion is performed.
+    """
+    profiles = {
+        "Normal orbital conditions": {
+            "cps": (8.0, 18.0), "dose": (2.0, 8.0), "radiation": "Mixed background"
+        },
+        "South Atlantic Anomaly pass": {
+            "cps": (35.0, 95.0), "dose": (20.0, 96.0), "radiation": "Proton-rich region"
+        },
+        "Solar particle event": {
+            "cps": (100.0, 280.0), "dose": (80.0, 250.0), "radiation": "Solar energetic particles"
+        },
+    }
+    if scenario not in profiles:
+        raise ValueError("Unknown simulation scenario.")
+
+    profile = profiles[scenario]
+    cps = random.uniform(*profile["cps"])
+    dose_rate = random.uniform(*profile["dose"])
+
+    # Add modest continuity so adjacent samples look like a changing sensor stream.
+    previous = list(previous_readings)
+    if previous and previous[-1].get("source") == "Simulated sensor":
+        prior_cps = float(previous[-1]["count_rate_cps"])
+        prior_dose = previous[-1].get("dose_rate_usv_h")
+        if prior_dose is not None:
+            cps = max(0.1, 0.65 * prior_cps + 0.35 * cps)
+            dose_rate = max(0.1, 0.65 * float(prior_dose) + 0.35 * dose_rate)
+
+    interval_minutes = 1.0
+    dose_increment_msv = dose_rate * interval_minutes / 60.0 / 1000.0
+    previous_cumulative = 0.0
+    for row in reversed(previous):
+        if row.get("cumulative_session_dose_msv") is not None:
+            previous_cumulative = float(row["cumulative_session_dose_msv"])
+            break
+
+    status = "operational"
+    if random.random() < 0.015:
+        status = "warning"
+
+    reading = make_reading(
+        detector_id="SIM-RAD-01",
+        count_rate_cps=round(cps, 2),
+        radiation_type=profile["radiation"],
+        sensor_status=status,
+        timestamp=timestamp,
+        source="Simulated sensor",
+    )
+    reading.update({
+        "scenario": scenario,
+        "dose_rate_usv_h": round(dose_rate, 2),
+        "dose_increment_msv": round(dose_increment_msv, 6),
+        "cumulative_session_dose_msv": round(
+            previous_cumulative + dose_increment_msv, 6
+        ),
+        "sample_interval_minutes": interval_minutes,
+    })
+    return reading
