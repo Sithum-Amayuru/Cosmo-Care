@@ -34,7 +34,7 @@ scenario = st.selectbox(
         "South Atlantic Anomaly pass",
         "Solar particle event",
     ],
-    help="These are demonstration scenarios, not predictions of actual space weather."
+    help="These are demonstration scenarios, not predictions of actual space weather.",
 )
 sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 1])
 with sim_col1:
@@ -110,7 +110,7 @@ if analysis["count"]:
     m1.metric("Latest count rate", f'{analysis["latest_cps"]:g} CPS')
     m2.metric("Average count rate", f'{analysis["average_cps"]:.2f} CPS')
     m3.metric("Peak count rate", f'{analysis["peak_cps"]:g} CPS')
-    m4.metric("Readings", analysis["count'])
+    m4.metric("Readings", analysis["count"])
 
     if analysis["anomaly"]:
         st.warning("Unusual count-rate increase: " + analysis["message"])
@@ -138,32 +138,26 @@ if analysis["count"]:
             "It is not a forecast or a clinical risk calculation."
         )
 
-        # These are explicitly prototype alert bands, not NASA medical thresholds.
+        # Prototype alert bands only; these are not medical or mission safety limits.
         if latest_dose >= 100:
             st.error("HIGH SIMULATED EXPOSURE — prototype alert")
             st.markdown(
-                "- Follow the mission's approved radiation-event and shelter procedure.
-"
-                "- Move to the designated shielded area if instructed by mission control.
-"
-                "- Suspend non-essential EVA or exposed activities under mission procedures.
-"
+                "- Follow the mission's approved radiation-event and shelter procedure.\n"
+                "- Move to the designated shielded area if instructed by mission control.\n"
+                "- Suspend non-essential EVA or exposed activities under mission procedures.\n"
                 "- Notify the radiation officer / flight surgeon and verify the reading."
             )
         elif latest_dose >= 25:
             st.warning("ELEVATED SIMULATED EXPOSURE — prototype alert")
             st.markdown(
-                "- Check the radiation trend and confirm detector status.
-"
-                "- Review current space-weather and mission-control advisories.
-"
+                "- Check the radiation trend and confirm detector status.\n"
+                "- Review current space-weather and mission-control advisories.\n"
                 "- Limit avoidable time in less-shielded locations while awaiting guidance."
             )
         else:
             st.success("ROUTINE SIMULATED RANGE — prototype assessment")
             st.markdown(
-                "- Continue routine monitoring and follow the mission radiation-protection plan.
-"
+                "- Continue routine monitoring and follow the mission radiation-protection plan.\n"
                 "- Keep cumulative exposure records and check detector health."
             )
 
@@ -174,14 +168,8 @@ if analysis["count"]:
         )
 
         st.info(
-            f"NASA's published spaceflight standard sets a career effective-dose limit of "
-            f"600 mSv. The value above is only the dose accumulated during this simulated "
-            f"app session; it is NOT the astronaut's career dose and must not be compared "
-            f"as a real compliance result."
-        )
-        st.markdown(
-            "Reference: [NASA-STD-3001 radiation protection requirements]"
-            "(https://www.nasa.gov/reference/4-0-human-performance/)."
+            "This demo session's accumulated simulated dose is not the astronaut's career dose. "
+            "Do not use it as a real compliance result or medical risk estimate."
         )
 
     df = pd.DataFrame(history)
