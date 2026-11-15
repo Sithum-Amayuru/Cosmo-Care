@@ -113,12 +113,12 @@ else:
         from modules.mood_companion import get_companion_response
 
         # Streamlit Cloud secrets are exposed through st.secrets, not automatically
-        # as environment variables. Copy only the key into the process environment.
+        # as environment variables. Copy the OpenRouter settings into this process.
         try:
-            if st.secrets.get("GROQ_API_KEY"):
-                os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-            if st.secrets.get("GROQ_MODEL"):
-                os.environ["GROQ_MODEL"] = st.secrets["GROQ_MODEL"]
+            if st.secrets.get("OPENROUTER_API_KEY"):
+                os.environ["OPENROUTER_API_KEY"] = st.secrets["OPENROUTER_API_KEY"]
+            if st.secrets.get("OPENROUTER_MODEL"):
+                os.environ["OPENROUTER_MODEL"] = st.secrets["OPENROUTER_MODEL"]
         except Exception:
             pass
 
@@ -142,7 +142,7 @@ else:
                 except RuntimeError as exc:
                     st.error(str(exc))
                     st.info(
-                        "To enable the companion, add GROQ_API_KEY to your "
+                        "To enable the companion, add OPENROUTER_API_KEY to your "
                         "Streamlit app secrets. Never put the key in source code."
                     )
 
