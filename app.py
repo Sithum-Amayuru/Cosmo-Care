@@ -109,6 +109,19 @@ if not st.session_state.cosmo_authenticated:
 else:
     st.success("Welcome to the Cosmo Care mission console.")
 
+    # Initialize the teammate's shared SQLite schema without inserting sample
+    # astronauts or synthetic health readings. The file is local prototype storage.
+    try:
+        from modules.mission_backend import get_database
+
+        st.session_state.cosmo_mission_backend_ready = get_database() is not None
+    except Exception as exc:
+        st.session_state.cosmo_mission_backend_ready = False
+        st.warning(
+            "The experimental mission database could not be initialized. "
+            "Existing Cosmo Care pages remain available. Details: " + str(exc)
+        )
+
     # Manual companion access: astronauts can start a conversation at any time,
     # independently of the camera's uncertain expression estimate.
     if not st.session_state.cosmo_chat_open:
