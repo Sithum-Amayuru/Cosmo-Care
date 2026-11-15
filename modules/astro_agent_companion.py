@@ -1,8 +1,8 @@
-"""OpenRouter-powered adaptation of the teammate's AstroCompanionAgent.
+"""Hosted AI companion with OpenRouter primary and Groq fallback.
 
-This first integration keeps the teammate's companion personality and voice
-transcript cleanup, but deliberately avoids its local SQLite/media dependencies.
-It does not claim to send alerts, update inventory, or play local media.
+The companion keeps its existing prompt and transcript cleanup while using
+independent hosted providers so a quota or availability problem at one provider
+does not automatically disable Cosmo Care.
 """
 import json
 import os
@@ -10,8 +10,15 @@ import urllib.error
 import urllib.request
 
 
-API_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_MODEL = "baidu/ernie-5.5-flash-preview:free"
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_OPENROUTER_MODEL = "baidu/ernie-5.5-flash-preview:free"
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
+
+
+class ProviderError(RuntimeError):
+    """A hosted model provider could not return a usable completion."""
+
 
 VOICE_CORRECTIONS = {
     "sea oh two": "CO2",
@@ -93,56 +100,35 @@ MISSION SAFETY AND HONESTY
 """
 
 
-def get_astro_agent_response(history, user_message=None, mood_context=None,
-                             astronaut_name="Astronaut"):
-    """Get one reply from the adapted teammate companion through OpenRouter."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "OpenRouter is not configured. Add OPENROUTER_API_KEY to Streamlit secrets."
-        )
-
-    messages = [{
-        "role": "system",
-        "content": _build_system_prompt(astronaut_name, mood_context),
-    }]
-    messages.extend(history[-8:])
-    if user_message is not None:
-        messages.append({
-            "role": "user",
-            "content": clean_voice_transcript(user_message),
-        })
-
-    configured_model = os.getenv("OPENROUTER_MODEL", "").strip()
-    # Replace the old random free-model router with a fixed, fast conversational
-    # model. Keep any other explicitly configured model override.
-    if not configured_model or configured_model == "openrouter/free":
-        configured_model = DEFAULT_MODEL
-
+def _request_completion(provider, api_url, api_key, model, messages):
+    """Send one OpenAI-compatible chat-completion request."""
     payload = {
-        "model": configured_model,
+        "model": model,
         "messages": messages,
         "temperature": 0.6,
         "max_tokens": 150,
     }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    if provider == "OpenRouter":
+        headers["HTTP-Referer"] = "https://cosmo-care.streamlit.app"
+        headers["X-Title"] = "Cosmo Care"
+
     request = urllib.request.Request(
-        API_URL,
+        api_url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://cosmo-care.streamlit.app",
-            "X-Title": "Cosmo Care",
-        },
+        headers=headers,
         method="POST",
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=45) as response:
+        with urllib.request.urlopen(request, timeout=35) as response:
             data = json.loads(response.read().decode("utf-8"))
         content = data["choices"][0]["message"]["content"]
         if not isinstance(content, str) or not content.strip():
-            raise ValueError("The model returned an empty response.")
+            raise ValueError("The provider returned an empty response.")
         return content.strip()
     except urllib.error.HTTPError as exc:
         raw_detail = exc.read().decode("utf-8", errors="replace")
@@ -157,11 +143,73 @@ def get_astro_agent_response(history, user_message=None, mood_context=None,
             )
         except (ValueError, AttributeError):
             detail = raw_detail
-        raise RuntimeError(
-            f"OpenRouter API returned HTTP {exc.code}: {str(detail)[:400]}"
+        raise ProviderError(
+            f"{provider} returned HTTP {exc.code}: {str(detail)[:250]}"
         ) from exc
-    except (urllib.error.URLError, TimeoutError, KeyError, IndexError, ValueError) as exc:
-        raise RuntimeError(
-            "Could not get a reply from the Astro Agent through OpenRouter. "
-            "Check the app network connection and OpenRouter configuration."
+    except (urllib.error.URLError, TimeoutError, KeyError, IndexError,
+            ValueError, TypeError) as exc:
+        raise ProviderError(
+            f"{provider} could not return a valid response: {str(exc)[:180]}"
         ) from exc
+
+
+def get_astro_agent_response(history, user_message=None, mood_context=None,
+                             astronaut_name="Astronaut"):
+    """Get a reply, falling back from OpenRouter to Groq when necessary."""
+    messages = [{
+        "role": "system",
+        "content": _build_system_prompt(astronaut_name, mood_context),
+    }]
+    messages.extend(history[-8:])
+    if user_message is not None:
+        messages.append({
+            "role": "user",
+            "content": clean_voice_transcript(user_message),
+        })
+
+    openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+
+    configured_openrouter_model = os.getenv("OPENROUTER_MODEL", "").strip()
+    if not configured_openrouter_model or configured_openrouter_model == "openrouter/free":
+        configured_openrouter_model = DEFAULT_OPENROUTER_MODEL
+
+    configured_groq_model = (
+        os.getenv("GROQ_MODEL", "").strip() or DEFAULT_GROQ_MODEL
+    )
+
+    errors = []
+
+    # Try the primary provider first when its key is configured.
+    if openrouter_key:
+        try:
+            return _request_completion(
+                "OpenRouter", OPENROUTER_API_URL, openrouter_key,
+                configured_openrouter_model, messages,
+            )
+        except ProviderError as exc:
+            errors.append(str(exc))
+
+    # Try the independent backup if configured. This also works as the only
+    # provider when an OpenRouter key has not been added.
+    if groq_key:
+        try:
+            return _request_completion(
+                "Groq", GROQ_API_URL, groq_key, configured_groq_model, messages,
+            )
+        except ProviderError as exc:
+            errors.append(str(exc))
+
+    if not openrouter_key and not groq_key:
+        raise RuntimeError(
+            "No AI provider is configured. Add OPENROUTER_API_KEY and/or "
+            "GROQ_API_KEY to Streamlit app secrets."
+        )
+
+    if not groq_key:
+        errors.append(
+            "Groq backup is not configured. Add GROQ_API_KEY to Streamlit secrets "
+            "to enable automatic fallback."
+        )
+
+    raise RuntimeError("Cosmo could not reach an AI provider. " + " | ".join(errors))
