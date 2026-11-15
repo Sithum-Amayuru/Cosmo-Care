@@ -9,6 +9,7 @@ st.set_page_config(
 )
 
 from cosmo_camera import cosmo_camera
+from cosmo_voice import cosmo_voice
 
 st.session_state.setdefault("cosmo_authenticated", False)
 st.session_state.setdefault("cosmo_selected_page", "Mission Overview")
@@ -19,6 +20,9 @@ st.session_state.setdefault("cosmo_expression_totals", {})
 st.session_state.setdefault("cosmo_pending_mood", None)
 st.session_state.setdefault("cosmo_chat_history", [])
 st.session_state.setdefault("cosmo_mood_checkin_started", False)
+st.session_state.setdefault("cosmo_voice_response_text", "")
+st.session_state.setdefault("cosmo_voice_response_id", 0)
+st.session_state.setdefault("cosmo_last_voice_event_id", None)
 
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
@@ -124,6 +128,46 @@ else:
 
         st.markdown("### 💬 Cosmo Care companion")
         st.caption("A friendly conversation partner — not a mental-health diagnostic tool.")
+
+        st.caption("Voice-first companion with text chat as a fallback.")
+
+        # The browser component handles microphone input and spoken playback.
+        # Only replies to voice-originated messages are sent back for speech.
+        voice_event = cosmo_voice(
+            response_text=st.session_state.cosmo_voice_response_text,
+            response_id=st.session_state.cosmo_voice_response_id,
+            key="cosmo_voice_interface",
+            active=True,
+        )
+
+        if (
+            isinstance(voice_event, dict)
+            and voice_event.get("type") == "transcript"
+            and voice_event.get("eventId") != st.session_state.cosmo_last_voice_event_id
+        ):
+            st.session_state.cosmo_last_voice_event_id = voice_event.get("eventId")
+            spoken_message = (voice_event.get("text") or "").strip()
+            if spoken_message:
+                st.session_state.cosmo_chat_history.append(
+                    {"role": "user", "content": spoken_message}
+                )
+                try:
+                    voice_reply = get_astro_agent_response(
+                        st.session_state.cosmo_chat_history[:-1],
+                        user_message=spoken_message,
+                    )
+                    st.session_state.cosmo_chat_history.append(
+                        {"role": "assistant", "content": voice_reply}
+                    )
+                    st.session_state.cosmo_voice_response_text = voice_reply
+                    st.session_state.cosmo_voice_response_id += 1
+                except RuntimeError as exc:
+                    st.session_state.cosmo_voice_response_text = (
+                        "I'm having trouble connecting right now. Please try again in a moment."
+                    )
+                    st.session_state.cosmo_voice_response_id += 1
+                    st.error(str(exc))
+                st.rerun()
 
         # Start one gentle greeting when the companion is opened, whether by
         # accepting a camera prompt or by using the manual Talk to Cosmo button.
