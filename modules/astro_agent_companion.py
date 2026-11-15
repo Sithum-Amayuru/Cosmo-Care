@@ -111,6 +111,9 @@ def _request_completion(provider, api_url, api_key, model, messages):
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
+        # Cloudflare may reject urllib's default Python-urllib user agent (1010).
+        # Identify this client honestly as the Cosmo Care application.
+        "User-Agent": "CosmoCare/1.0 (+https://github.com/Sithum-Amayuru/Cosmo-Care)",
     }
     if provider == "OpenRouter":
         headers["HTTP-Referer"] = "https://cosmo-care.streamlit.app"
