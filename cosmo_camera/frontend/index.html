@@ -93,6 +93,7 @@ function ui(progress = 0) {
   $('fill').style.width = `${progress * 100}%`;
   $('chip').textContent = running
     ? (faceDetected ? 'Face detected' : 'No face detected')
+      + (!loggedIn && faceDetected ? ` · login check: ${Math.min(Math.ceil(faceSecs), args.loginSeconds)}/${args.loginSeconds}s` : '')
       + (loggedIn && expression ? ` · ${expression.label} (${Math.round(expression.score * 100)}%)` : '')
       + (loggedIn && moodStreakLabel ? ` · check-in progress: ${moodStreakLabel} ${Math.floor(moodStreakSecs)}/10s` : '')
     : '';
