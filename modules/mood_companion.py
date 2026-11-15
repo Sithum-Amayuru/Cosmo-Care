@@ -1,4 +1,4 @@
-"""Mood-aware astronaut companion using Groq's OpenAI-compatible chat API.
+"""Mood-aware astronaut companion using OpenRouter's chat completions API.
 
 The camera supplies a tentative facial-expression label only. This module never
 treats that label as a diagnosis or as proof of the astronaut's emotional state.
@@ -9,8 +9,8 @@ import urllib.error
 import urllib.request
 
 
-DEFAULT_MODEL = "qwen/qwen3.8-27b"
-API_URL = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_MODEL = "openrouter/free"
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = """You are Cosmo Care's warm, witty, supportive companion for an
 astronaut on a long-duration space mission. Speak naturally, like a thoughtful
@@ -56,14 +56,14 @@ def _messages(history, mood_context=None, user_message=None):
 
 def get_companion_response(history, user_message=None, mood_context=None):
     """Return one assistant reply. Raises a useful RuntimeError on API errors."""
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         raise RuntimeError(
-            "Groq is not configured. Add GROQ_API_KEY to Streamlit secrets."
+            "OpenRouter is not configured. Add OPENROUTER_API_KEY to Streamlit secrets."
         )
 
     payload = {
-        "model": os.getenv("GROQ_MODEL", DEFAULT_MODEL),
+        "model": os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL),
         "messages": _messages(history, mood_context, user_message),
         "temperature": 0.7,
         "max_tokens": 350,
@@ -74,16 +74,19 @@ def get_companion_response(history, user_message=None, mood_context=None):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "HTTP-Referer": "https://cosmo-care.streamlit.app",
+            "X-Title": "Cosmo Care",
         },
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=45) as response:
             data = json.loads(response.read().decode("utf-8"))
-        return data["choices"][0]["message"]["content"].strip()
+        content = data["choices"][0]["message"]["content"]
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("The model returned an empty response.")
+        return content.strip()
     except urllib.error.HTTPError as exc:
-        # Preserve Groq's own error message so the UI can show the actual cause
-        # (for example, an access restriction) instead of a generic 403 message.
         raw_detail = exc.read().decode("utf-8", errors="replace")
         try:
             error_data = json.loads(raw_detail)
@@ -97,12 +100,12 @@ def get_companion_response(history, user_message=None, mood_context=None):
         except (ValueError, AttributeError):
             detail = raw_detail
         detail = str(detail).replace("\\n", " ").strip()[:500]
-        message = f"Groq API returned HTTP {exc.code}"
+        message = f"OpenRouter API returned HTTP {exc.code}"
         if detail:
             message += f": {detail}"
         raise RuntimeError(message) from exc
     except (urllib.error.URLError, TimeoutError, KeyError, IndexError, ValueError) as exc:
         raise RuntimeError(
-            "Could not get a reply from Groq. Check the app's network connection "
-            "and Groq configuration."
+            "Could not get a reply from OpenRouter. Check the app's network "
+            "connection and OpenRouter configuration."
         ) from exc
