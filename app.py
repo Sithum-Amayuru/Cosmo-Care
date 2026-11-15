@@ -13,6 +13,9 @@ from cosmo_voice import cosmo_voice
 
 st.session_state.setdefault("cosmo_authenticated", False)
 st.session_state.setdefault("cosmo_selected_page", "Mission Overview")
+st.session_state.setdefault("cosmo_current_page", "Mission Overview")
+st.session_state.setdefault("cosmo_page_history", [])
+st.session_state.setdefault("cosmo_skip_history_update", False)
 st.session_state.setdefault("cosmo_cam_gen", 0)
 st.session_state.setdefault("cosmo_chat_open", False)
 st.session_state.setdefault("cosmo_last_prompt_action", None)
@@ -265,11 +268,49 @@ else:
         "Personalized Health": "views/personalized_health.py",
         "Reports & Data": "views/reports_and_data.py",
     }
+    def _cosmo_go_back():
+        history = st.session_state.get("cosmo_page_history", [])
+        if history:
+            st.session_state.cosmo_selected_page = history.pop()
+        st.session_state.cosmo_skip_history_update = True
+
+    def _cosmo_go_home():
+        st.session_state.cosmo_selected_page = "Mission Overview"
+        st.session_state.cosmo_page_history = []
+        st.session_state.cosmo_skip_history_update = True
+
     selected_page = st.sidebar.radio(
         "Mission workspace",
         list(page_options.keys()),
         key="cosmo_selected_page",
     )
+
+    # Keep a simple navigation history for the global Back button.
+    if selected_page != st.session_state.cosmo_current_page:
+        if not st.session_state.cosmo_skip_history_update:
+            st.session_state.cosmo_page_history.append(
+                st.session_state.cosmo_current_page
+            )
+        st.session_state.cosmo_current_page = selected_page
+    st.session_state.cosmo_skip_history_update = False
+
+    nav_back, nav_home, nav_space = st.columns([1, 1, 6])
+    with nav_back:
+        st.button(
+            "← Back",
+            key="cosmo_global_back",
+            disabled=not st.session_state.cosmo_page_history,
+            on_click=_cosmo_go_back,
+            use_container_width=True,
+        )
+    with nav_home:
+        st.button(
+            "⌂ Home",
+            key="cosmo_global_home",
+            on_click=_cosmo_go_home,
+            use_container_width=True,
+        )
+
     runpy.run_path(page_options[selected_page])
 
     (chat_col,) = st.columns([1])
