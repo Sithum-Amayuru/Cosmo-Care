@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 from ui_theme import apply_theme, render_hero
 
 apply_theme()
@@ -42,10 +41,13 @@ for col, (name, crew_id) in zip(crew_cols, crew_ids):
                     st.markdown("### ⚪ Unable to assess")
                     st.write("The latest result needs technical review.")
                 st.caption(f"Last sample: {latest.get('timestamp', 'Time unavailable')}")
-            if st.button("Open health check", key=f"home_health_{crew_id}", use_container_width=True):
-                st.session_state.cosmo_selected_page = "Astronaut Health Intelligence"
-                st.session_state.intel_astronaut = name
-                st.rerun()
+            st.button(
+                "Open health check",
+                key=f"home_health_{crew_id}",
+                use_container_width=True,
+                on_click=_open_crew_health,
+                args=(name,),
+            )
 
 st.divider()
 st.markdown("### Mission activity")
@@ -62,6 +64,11 @@ st.caption("Open a monitoring area to review readings, run a simulation or expor
 
 def _select_workspace(page_name):
     st.session_state.cosmo_selected_page = page_name
+
+
+def _open_crew_health(name):
+    st.session_state.cosmo_selected_page = "Astronaut Health Intelligence"
+    st.session_state.intel_astronaut = name
 
 pages = [
     ("🩺 Crew health", "Understand health-pattern results and explore the technical measurements when needed.", "Astronaut Health Intelligence"),
