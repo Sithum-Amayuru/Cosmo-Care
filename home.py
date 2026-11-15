@@ -27,8 +27,8 @@ def _select_workspace(page_name):
 
 
 pages = [
-    ("☢️ Radiation monitoring", "Record detector CPS readings, inspect trends and review count-rate anomalies.", "Radiation Monitoring"),
-    ("🫀 Crew & environment", "Enter crew physiological and spacecraft environmental readings.", "Crew & Environment"),
+    ("🛰️ Astronaut Health Intelligence", "Explore crew health patterns, synthetic biosignals, cabin conditions, radiation trends and deep-space resupply planning.", "Astronaut Health Intelligence"),
+    ("☢️ Radiation monitoring", "Inspect detector count-rate trends and illustrative anomalies.", "Radiation Monitoring"),
     ("🥗 Personalized health", "Manage astronaut profiles, explore tailored exercise and diet suggestions, and record examinations.", "Personalized Health"),
     ("📊 Reports & data", "Review session records and export data for your demonstration.", "Reports & Data"),
 ]
