@@ -93,70 +93,22 @@ with st.sidebar:
     )
 
 if not st.session_state.cosmo_authenticated:
-    fallback_svg = """
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%">
-        <defs>
-            <radialGradient id="spaceBg" cx="50%" cy="45%" r="75%">
-                <stop offset="0%" stop-color="#071636"/>
-                <stop offset="55%" stop-color="#030918"/>
-                <stop offset="100%" stop-color="#010308"/>
-            </radialGradient>
-            <radialGradient id="earthGlow" cx="50%" cy="100%" r="55%">
-                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.85"/>
-                <stop offset="35%" stop-color="#0284c7" stop-opacity="0.45"/>
-                <stop offset="70%" stop-color="#030918" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="cyanBlue" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#0284c7"/>
-                <stop offset="100%" stop-color="#38bdf8"/>
-            </linearGradient>
-        </defs>
-        <rect width="1920" height="1080" fill="url(#spaceBg)"/>
-        <circle cx="250" cy="180" r="1.8" fill="#ffffff" opacity="0.7"/>
-        <circle cx="520" cy="120" r="1.4" fill="#38bdf8" opacity="0.8"/>
-        <circle cx="1420" cy="160" r="2.0" fill="#ffffff" opacity="0.75"/>
-        <circle cx="1680" cy="280" r="1.5" fill="#38bdf8" opacity="0.7"/>
-        <circle cx="380" cy="520" r="1.5" fill="#ffffff" opacity="0.6"/>
-        <circle cx="1550" cy="540" r="1.8" fill="#ffffff" opacity="0.65"/>
-        <ellipse cx="960" cy="1120" rx="980" ry="380" fill="url(#earthGlow)"/>
-        <ellipse cx="960" cy="1160" rx="880" ry="290" fill="#041028" stroke="#38bdf8" stroke-width="5"/>
-        <g transform="translate(960, 340)">
-            <path d="M-190,65 C-250,10 -150,-110 20,-135 C170,-155 240,-40 120,55" fill="none" stroke="url(#cyanBlue)" stroke-width="18" stroke-linecap="round"/>
-            <circle cx="0" cy="-35" r="82" fill="#071c3d" stroke="#ffffff" stroke-width="12"/>
-            <path d="M-45,-65 C-10,-95 55,-80 65,-25 C70,15 35,35 -15,25 C-55,15 -65,-35 -45,-65 Z" fill="#0c2d5e" stroke="#38bdf8" stroke-width="6"/>
-            <circle cx="-48" cy="-22" r="22" fill="#ffffff"/>
-            <path d="M135,-125 L145,-98 L172,-88 L145,-78 L135,-51 L125,-78 L98,-88 L125,-98 Z" fill="#ffffff"/>
-            <polyline points="-105,68 -45,68 -32,42 -15,92 4,15 24,102 40,68 105,68" fill="none" stroke="#38bdf8" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
-        </g>
-        <text x="905" y="575" fill="#ffffff" font-size="92" font-weight="800" font-family="Segoe UI, Arial, sans-serif" text-anchor="end" letter-spacing="6">COSMO</text>
-        <text x="945" y="575" fill="#22d3ee" font-size="92" font-weight="800" font-family="Segoe UI, Arial, sans-serif" text-anchor="start" letter-spacing="6">CARE</text>
-        <text x="960" y="645" fill="#cbd5e1" font-size="28" font-weight="500" font-family="Segoe UI, Arial, sans-serif" text-anchor="middle" letter-spacing="14">HEALTHCARE BEYOND EARTH</text>
-    </svg>
-    """
-    b64_svg = base64.b64encode(fallback_svg.strip().encode("utf-8")).decode()
-    bg_url = f"data:image/svg+xml;base64,{b64_svg}"
-
+    bg_url = "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1920&q=85"
     for candidate in (
-        Path(__file__).parent / "cosmo_login_bg.jpg",
-        Path(__file__).parent / "cosmo_login_bg.png",
-        Path(__file__).parent / "image_6b0485.jpg",
-        Path(__file__).parent / "image_6b0485.png",
         Path(__file__).parent / "galaxy_bg.jpg",
-        Path(__file__).parent / "assets" / "cosmo_login_bg.jpg",
-        Path(__file__).parent / "assets" / "image_6b0485.jpg",
         Path(__file__).parent / "assets" / "galaxy_bg.jpg",
+        Path(__file__).parent / "image_6b8443.jpg",
     ):
         if candidate.exists():
-            mime = "image/png" if candidate.suffix.lower() == ".png" else "image/jpeg"
             b64_img = base64.b64encode(candidate.read_bytes()).decode()
-            bg_url = f"data:{mime};base64,{b64_img}"
+            bg_url = f"data:image/jpeg;base64,{b64_img}"
             break
 
     st.markdown(
         f"""
         <style>
         .stApp {{
-            background: linear-gradient(rgba(3, 8, 20, 0.45), rgba(3, 8, 20, 0.55)),
+            background: linear-gradient(rgba(8, 12, 24, 0.55), rgba(8, 12, 24, 0.65)),
                         url("{bg_url}") no-repeat center center fixed !important;
             background-size: cover !important;
         }}
@@ -347,6 +299,7 @@ else:
         "Personalized Health": "views/personalized_health.py",
         "Reports & Data": "views/reports_and_data.py",
     }
+
     def _cosmo_go_back():
         history = st.session_state.get("cosmo_page_history", [])
         if history:
@@ -363,7 +316,6 @@ else:
         selected_page = "Mission Overview"
         st.session_state.cosmo_selected_page = selected_page
 
-    # Keep a simple navigation history for the global Back button.
     if selected_page != st.session_state.cosmo_current_page:
         if not st.session_state.cosmo_skip_history_update:
             st.session_state.cosmo_page_history.append(
