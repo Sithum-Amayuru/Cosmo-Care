@@ -106,8 +106,14 @@ def _request_completion(provider, api_url, api_key, model, messages):
         "model": model,
         "messages": messages,
         "temperature": 0.6,
-        "max_tokens": 150,
     }
+    if provider == "Groq" and model == "openai/gpt-oss-20b":
+        # Keep the reasoning model responsive for a voice-first companion.
+        payload["reasoning_effort"] = "low"
+        payload["include_reasoning"] = False
+        payload["max_completion_tokens"] = 300
+    else:
+        payload["max_tokens"] = 150
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -127,7 +133,7 @@ def _request_completion(provider, api_url, api_key, model, messages):
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=35) as response:
+        with urllib.request.urlopen(request, timeout=25) as response:
             data = json.loads(response.read().decode("utf-8"))
         content = data["choices"][0]["message"]["content"]
         if not isinstance(content, str) or not content.strip():
