@@ -39,16 +39,16 @@ with right:
     flight_day = st.number_input("Mission day", min_value=1, max_value=2000, value=24, step=1)
 
 st.divider()
-st.subheader("1 · Crew health simulation")
-st.caption("Choose a scenario to generate an illustrative set of physiological inputs.")
+st.subheader("1 · Crew health check")
+st.caption("Choose a sample situation to see how the monitoring system explains crew readings.")
 scenario = st.selectbox(
     "Simulation scenario",
     [
         "Nominal baseline",
-        "Elevated heart rate / low HRV",
-        "Possible low-volume pattern",
-        "Elevated CO₂ + headache pattern",
-        "Muscle cramp / discomfort",
+        "Higher heart rate and lower heart-rate variability",
+        "Possible low blood-volume pattern",
+        "Higher cabin CO2 and headache pattern",
+        "Muscle discomfort",
         "Custom readings",
     ],
     key="intel_health_scenario",
@@ -111,27 +111,75 @@ last = st.session_state.mission_intel_last_result
 if last and last["snapshot"]["astronaut_id"] == astronaut_id:
     result = last["result"]
     vitals = last["vitals"]
-    st.markdown("#### Prototype analysis")
-    st.error(
-        f"Unvalidated engine label: {result['status_level']} · {result['diagnosis']}"
+
+    # Translate research-engine terminology into plain language for the default view.
+    diagnosis = str(result.get("diagnosis", ""))
+    friendly_titles = {
+        "Microgravity Hypovolemia & Reduced Stroke Volume": "Possible low blood-volume pattern",
+        "Systemic Electrolyte Depletion & Myocardial Irritability": "Possible electrolyte-related heart rhythm concern",
+        "Cephalad Venous Congestion & Hypercapnic Vasodilation": "Possible CO2-related circulation concern",
+        "Localized Neuromuscular Hyper-Excitability": "Possible muscle or nerve irritation pattern",
+        "Autonomic Overdrive": "Possible stress-response pattern",
+        "Mechanical Overload": "Possible muscle overexertion pattern",
+    }
+    friendly_title = next(
+        (title for technical, title in friendly_titles.items() if technical.lower() in diagnosis.lower()),
+        "A pattern needs review" if result.get("status_level") != "NOMINAL" else "No unusual pattern detected",
     )
-    st.write(result["explanation"])
+    status = str(result.get("status_level", "UNKNOWN")).upper()
+    if status == "NOMINAL":
+        status_label, status_icon = "Normal", "🟢"
+        status_message = "The simulated readings did not trigger this prototype's warning rules."
+        status_kind = "success"
+    elif status == "MEDICAL HOLD":
+        status_label, status_icon = "High priority", "🔴"
+        status_message = "The prototype detected a pattern that requires prompt review by qualified mission medical personnel."
+        status_kind = "error"
+    elif status == "ADVISORY":
+        status_label, status_icon = "Needs attention", "🟠"
+        status_message = "Some simulated readings differ from the prototype's expected pattern. Review the measurements and verification steps."
+        status_kind = "warning"
+    else:
+        status_label, status_icon = "Unable to assess", "⚪"
+        status_message = "The engine returned an unrecognised status. Review the technical output."
+        status_kind = "info"
+
+    st.markdown("#### Crew health result")
+    with st.container(border=True):
+        st.markdown(f"### {status_icon} {status_label}")
+        st.markdown(f"## {friendly_title}")
+        st.write(status_message)
+        if status_kind == "success":
+            st.success("No prototype warning was triggered.")
+        elif status_kind == "error":
+            st.error("Priority review suggested by the experimental algorithm.")
+        elif status_kind == "warning":
+            st.warning("Review the readings; this is not a confirmed medical condition.")
+        else:
+            st.info("The result needs technical review.")
+        st.markdown("**What the system noticed**")
+        st.write(result.get("explanation", "No explanation was returned."))
+        st.markdown("**Suggested next step**")
+        st.write(result.get("verification", "Review the measurements with the qualified mission team."))
+        st.caption("Research simulation only. This status is not a diagnosis, medical clearance or emergency instruction.")
+
+    st.markdown("#### Key measurements")
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Heart rate", f"{vitals.hr:g} bpm")
-    m2.metric("Blood pressure", f"{vitals.sbp:g}/{vitals.dbp:g}")
-    m3.metric("HRV RMSSD", f"{vitals.hrv:g} ms")
-    m4.metric("Pulse pressure", f"{result['hemodynamics']['pulse_pressure']:g} mmHg")
-    st.caption(f"Mission phase assumption: {result['phase_name']}")
-    st.caption(f"Prototype verification prompt: {result['verification']}")
-    st.caption(
-        "The original treatment, medication and exercise instructions are deliberately "
-        "not executed or presented as advice. A qualified medical team must independently assess any real concern."
-    )
-    with st.expander("Inspect algorithm features"):
+    m1.metric("Heart rate", f"{vitals.hr:g} bpm", help="Number of heartbeats per minute.")
+    m2.metric("Blood pressure", f"{vitals.sbp:g}/{vitals.dbp:g} mmHg", help="Systolic / diastolic blood pressure.")
+    m3.metric("Heart rate variability", f"{vitals.hrv:g} ms", help="A measure of variation in time between heartbeats.")
+    m4.metric("Pulse pressure", f"{result['hemodynamics']['pulse_pressure']:g} mmHg", help="Difference between systolic and diastolic pressure.")
+    st.caption(f"Mission phase used by the research model: {result['phase_name']}")
+
+    show_engineering = st.toggle("Show engineering details", value=False, key="intel_show_engineering")
+    if show_engineering:
+        st.markdown("**Original engine output**")
+        st.write(result["status_level"] + " · " + result["diagnosis"])
         st.write("Standardised deviations (Z-scores)")
         st.json(result["z_scores"])
         st.write("Derived hemodynamic calculations")
         st.json(result["hemodynamics"])
+        st.caption("The teammate engine's medication, treatment and exercise recommendations are not presented as advice. Any real concern requires independent assessment by qualified medical personnel.")
 
     # Illustrative waveform generated from teammate's mathematical waveform model.
     wave_rows = []
@@ -156,8 +204,8 @@ if crew_history:
     st.dataframe(pd.DataFrame(crew_history).tail(10), use_container_width=True, hide_index=True)
 
 st.divider()
-st.subheader("2 · Shared spacecraft environment")
-st.caption("Cabin measurements are shared by all crew. Generate a scenario to explore the monitoring display.")
+st.subheader("2 · Spacecraft cabin conditions")
+st.caption("These readings describe the shared cabin environment, not an individual astronaut.")
 env_scenario = st.selectbox(
     "Cabin scenario",
     ["Nominal cabin", "Elevated CO₂", "Low oxygen", "Temperature excursion"],
@@ -199,8 +247,8 @@ if st.session_state.mission_intel_environment:
     st.caption("These demonstration triggers are not validated spacecraft environmental limits.")
 
 st.divider()
-st.subheader("3 · Radiation trend monitor")
-st.caption("CPS means detector counts per second; it is not a radiation dose.")
+st.subheader("3 · Radiation monitoring")
+st.caption("The detector counts events each second. This count rate is not the same as a radiation dose.")
 rad_scenario = st.selectbox(
     "Detector scenario", ["Routine background", "Count-rate spike", "Detector fault"],
     key="intel_rad_scenario",
@@ -241,8 +289,8 @@ if rad_history:
     st.caption("The teammate's anomaly multiplier is a demonstration heuristic, not a radiation safety threshold. No dose is inferred from CPS.")
 
 st.divider()
-st.subheader("4 · Deep-space resupply planning")
-st.caption("Uses your teammate's communication-delay and cargo-transit calculation. This is a planning estimate, not a real transmission.")
+st.subheader("4 · Supply delivery planning")
+st.caption("Estimate how long a supply shipment and its communication would take. This is a planning simulation, not a real transmission.")
 distance_km = st.number_input(
     "Spacecraft distance from Earth (km)",
     min_value=0.0, max_value=1_000_000_000.0, value=384400.0,
