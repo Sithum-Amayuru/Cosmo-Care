@@ -205,9 +205,9 @@ else:
                 except RuntimeError as exc:
                     st.error(str(exc))
                     st.info(
-                        "Check that at least one provider key is configured in "
-                        "Streamlit app secrets: OPENROUTER_API_KEY or GROQ_API_KEY. "
-                        "Never put API keys in source code."
+                        "If OpenRouter is rate-limited, add GROQ_API_KEY to Streamlit "
+                        "app secrets to enable the backup provider. At least one valid "
+                        "provider key is required. Never put API keys in source code."
                     )
 
         for message in st.session_state.cosmo_chat_history:
