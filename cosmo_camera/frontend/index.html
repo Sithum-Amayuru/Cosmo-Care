@@ -44,8 +44,8 @@ const MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_detector/
 const HF_MODEL = 'https://huggingface.co/onnxmodelzoo/emotion-ferplus-8/resolve/main/emotion-ferplus-8.onnx';
 const MSG = {
   idle: '',
-  'loading-models': 'Loading face and expression models. The first load can take a few seconds.',
-  'requesting-camera': 'Waiting for camera permission. Choose Allow in the browser prompt.',
+  'loading-models': 'Camera connected. Loading face and expression models — please wait.',
+  'requesting-camera': 'Requesting camera access. Please choose Allow in the browser permission popup.',
   'camera-denied': 'Camera permission was denied. Allow camera access in the browser address bar, then press Start camera.',
   'camera-unavailable': 'No usable camera was found. Connect a camera and press Start camera.',
   'camera-busy': 'The camera is being used by another app. Close it and press Start camera.',
@@ -85,7 +85,7 @@ function publish(force = false) {
 
 function ui(progress = 0) {
   const busyNow = status === 'loading-models' || status === 'requesting-camera';
-  $('v').style.display = status === 'running' ? 'block' : 'none';
+  $('v').style.display = stream ? 'block' : 'none';
   $('consentRow').hidden = running;
   $('go').hidden = running; $('go').disabled = !$('consent').checked || busyNow;
   $('stop').hidden = !running;
@@ -188,21 +188,41 @@ async function tick() {
 }
 
 async function start() {
-  error = ''; status = 'loading-models'; ui();
-  try { await loadModels(); } catch (e) { status = 'models-failed'; error = e.message; ui(); publish(true); return; }
-  status = 'requesting-camera'; ui();
+  if (running || busy) return;
+  busy = true;
+  error = '';
+  // Ask for camera permission immediately; don't wait for model downloads.
+  status = 'requesting-camera'; ui(); publish(true);
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
-    $('v').srcObject = stream; await $('v').play();
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' },
+      audio: false
+    });
+    $('v').srcObject = stream;
+    await $('v').play();
   } catch (e) {
+    busy = false;
     status = { NotAllowedError: 'camera-denied', NotFoundError: 'camera-unavailable', OverconstrainedError: 'camera-unavailable', NotReadableError: 'camera-busy' }[e.name] || 'camera-unavailable';
     error = e.message; ui(); publish(true); return;
   }
-  running = true; lastTick = performance.now(); status = 'running'; ui(); publish(true); tick();
+
+  status = 'loading-models'; ui(); publish(true);
+  try {
+    await loadModels();
+  } catch (e) {
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    stream = null; $('v').srcObject = null;
+    busy = false; status = 'models-failed'; error = e.message;
+    ui(); publish(true); return;
+  }
+
+  busy = false;
+  running = true; lastTick = performance.now(); status = 'running';
+  ui(); publish(true); tick();
 }
 
 function stop() {
-  running = false; clearTimeout(timer);
+  running = false; busy = false; clearTimeout(timer);
   if (stream) stream.getTracks().forEach((t) => t.stop());
   stream = null; $('v').srcObject = null;
   loggedIn = false; faceDetected = false; faceSecs = 0; totals = zero(); expression = null; prompt = null; promptAction = null; moodEvent = null;
