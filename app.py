@@ -129,6 +129,10 @@ else:
                 os.environ["OPENROUTER_API_KEY"] = st.secrets["OPENROUTER_API_KEY"]
             if st.secrets.get("OPENROUTER_MODEL"):
                 os.environ["OPENROUTER_MODEL"] = st.secrets["OPENROUTER_MODEL"]
+            if st.secrets.get("GROQ_API_KEY"):
+                os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+            if st.secrets.get("GROQ_MODEL"):
+                os.environ["GROQ_MODEL"] = st.secrets["GROQ_MODEL"]
         except Exception:
             pass
 
@@ -201,8 +205,9 @@ else:
                 except RuntimeError as exc:
                     st.error(str(exc))
                     st.info(
-                        "To enable the companion, add OPENROUTER_API_KEY to your "
-                        "Streamlit app secrets. Never put the key in source code."
+                        "Check that at least one provider key is configured in "
+                        "Streamlit app secrets: OPENROUTER_API_KEY or GROQ_API_KEY. "
+                        "Never put API keys in source code."
                     )
 
         for message in st.session_state.cosmo_chat_history:
