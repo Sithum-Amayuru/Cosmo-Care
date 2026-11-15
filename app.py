@@ -263,6 +263,8 @@ else:
 
     page_options = {
         "Mission Overview": "home.py",
+        "Astronaut Health Intelligence": "views/mission_intelligence.py",
+        "Daily Health Checkup": "views/health_checkup.py",
         "Radiation Monitoring": "views/radiation_monitoring.py",
         "Crew & Environment": "views/crew_environment.py",
         "Personalized Health": "views/personalized_health.py",
@@ -279,11 +281,10 @@ else:
         st.session_state.cosmo_page_history = []
         st.session_state.cosmo_skip_history_update = True
 
-    selected_page = st.sidebar.radio(
-        "Mission workspace",
-        list(page_options.keys()),
-        key="cosmo_selected_page",
-    )
+    selected_page = st.session_state.get("cosmo_selected_page", "Mission Overview")
+    if selected_page not in page_options:
+        selected_page = "Mission Overview"
+        st.session_state.cosmo_selected_page = selected_page
 
     # Keep a simple navigation history for the global Back button.
     if selected_page != st.session_state.cosmo_current_page:
@@ -294,7 +295,7 @@ else:
         st.session_state.cosmo_current_page = selected_page
     st.session_state.cosmo_skip_history_update = False
 
-    nav_back, nav_home, nav_space = st.columns([1, 1, 6])
+    nav_back, nav_home, nav_reset, nav_space = st.columns([1, 1, 1.2, 4.8])
     with nav_back:
         st.button(
             "← Back",
@@ -310,6 +311,34 @@ else:
             on_click=_cosmo_go_home,
             use_container_width=True,
         )
+    with nav_reset:
+        if st.button("↻ Reset", key="cosmo_global_reset", use_container_width=True):
+            st.session_state.cosmo_reset_requested = True
+
+    if st.session_state.get("cosmo_reset_requested", False):
+        st.warning(
+            "Reset will log you out and permanently clear saved prototype health, "
+            "checkup, chat, astronaut-profile and monitoring records from the app database. "
+            "This cannot be undone."
+        )
+        confirm_col, cancel_col, _ = st.columns([1.2, 1, 5])
+        with confirm_col:
+            if st.button("Confirm reset", type="primary", key="cosmo_confirm_reset"):
+                try:
+                    from modules.mission_backend import clear_health_records
+
+                    clear_health_records()
+                    next_camera_generation = st.session_state.get("cosmo_cam_gen", 0) + 1
+                    st.session_state.clear()
+                    st.session_state.cosmo_authenticated = False
+                    st.session_state.cosmo_cam_gen = next_camera_generation
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Reset could not be completed: {exc}")
+        with cancel_col:
+            if st.button("Cancel", key="cosmo_cancel_reset"):
+                st.session_state.cosmo_reset_requested = False
+                st.rerun()
 
     runpy.run_path(page_options[selected_page])
 
