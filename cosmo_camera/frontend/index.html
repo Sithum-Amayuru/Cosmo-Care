@@ -54,11 +54,13 @@ const MSG = {
 };
 const zero = () => Object.fromEntries(LABELS.map((l) => [l, 0]));
 
-let args = { loginSeconds: 3, promptSeconds: 10, promptLabels: ['sadness','anger','fear'], modelUrl: './emotion-ferplus-8.onnx', active: true };
+let args = { loginSeconds: 3, promptSeconds: 10, promptConfidence: 0.70, neutralPromptConfidence: 0.40, promptCooldownSeconds: 300, promptLabels: ['sadness','anger','fear','neutral'], modelUrl: './emotion-ferplus-8.onnx', active: true };
 let detector = null, session = null, stream = null, timer = null;
 let running = false, busy = false, loggedIn = false, faceDetected = false;
 let faceSecs = 0, lastTick = 0, lastExpr = 0, lastKey = '', lastPeriodic = 0;
+let moodStreakLabel = null, moodStreakSecs = 0, lastPromptAt = 0;
 let totals = zero(), expression = null, status = 'idle', error = '', prompt = null, promptAction = null;
+let moodEvent = null;
 
 function post(type, data) { window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, '*'); }
 let lastH = 0;
@@ -76,7 +78,7 @@ function publish(force = false) {
   lastKey = key; lastPeriodic = now;
   const rounded = Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, Math.round(v * 10) / 10]));
   post('streamlit:setComponentValue', {
-    value: { status, loggedIn, faceDetected, expression, totals: rounded, prompt, promptAction, error },
+    value: { status, loggedIn, faceDetected, expression, totals: rounded, prompt, promptAction, moodEvent, error },
     dataType: 'json',
   });
 }
@@ -90,12 +92,14 @@ function ui(progress = 0) {
   $('bar').hidden = !(running && !loggedIn);
   $('fill').style.width = `${progress * 100}%`;
   $('chip').textContent = running
-    ? (faceDetected ? 'Face detected' : 'No face detected') + (loggedIn && expression ? ` · ${expression.label}` : '')
+    ? (faceDetected ? 'Face detected' : 'No face detected')
+      + (loggedIn && expression ? ` · ${expression.label} (${Math.round(expression.score * 100)}%)` : '')
+      + (loggedIn && moodStreakLabel ? ` · check-in progress: ${moodStreakLabel} ${Math.floor(moodStreakSecs)}/10s` : '')
     : '';
   $('msg').textContent = (MSG[status] || '') + (status === 'models-failed' || status === 'camera-unavailable' ? ` ${error}` : '');
   $('msg').className = ['camera-denied', 'models-failed'].includes(status) ? 'bad' : '';
-  $('prompt').hidden = !prompt;
-  if (prompt) $('promptText').textContent = `A facial expression that looks like "${prompt}" was seen for a while. This is only an estimate from the camera. Would you like to talk to the support assistant?`;
+  // Emotion check-ins start automatically; no in-app accept/dismiss prompt.
+  $('prompt').hidden = true;
   resize();
 }
 
@@ -152,13 +156,28 @@ async function tick() {
           try {
             expression = await classify(video, det.boundingBox);
             totals[expression.label] += elapsed;
-            if (args.promptLabels.includes(expression.label) && totals[expression.label] >= args.promptSeconds && !prompt) {
-              totals[expression.label] = 0; prompt = expression.label; promptAction = null;
+            const requiredConfidence = expression.label === 'neutral' ? args.neutralPromptConfidence : args.promptConfidence;
+            const eligible = args.promptLabels.includes(expression.label) && expression.score >= requiredConfidence;
+            if (eligible) {
+              if (moodStreakLabel === expression.label) moodStreakSecs += elapsed;
+              else { moodStreakLabel = expression.label; moodStreakSecs = elapsed; }
+            } else {
+              moodStreakLabel = null; moodStreakSecs = 0;
+            }
+            const cooldownPassed = lastPromptAt === 0 || now - lastPromptAt >= args.promptCooldownSeconds * 1000;
+            if (eligible && moodStreakSecs >= args.promptSeconds && !prompt && cooldownPassed) {
+              // Automatically open Cosmo with the detected expression as context.
+              // The model treats this as an uncertain visual estimate, not a fact.
+              moodEvent = expression.label;
+              promptAction = 'accepted';
+              prompt = null;
+              lastPromptAt = now;
+              moodStreakLabel = null; moodStreakSecs = 0;
             }
           } finally { busy = false; }
         }
       } else {
-        faceDetected = false; faceSecs = 0;
+        faceDetected = false; faceSecs = 0; moodStreakLabel = null; moodStreakSecs = 0;
         if (loggedIn) lastExpr = now;
       }
       ui(Math.min(faceSecs / args.loginSeconds, 1));
@@ -186,15 +205,14 @@ function stop() {
   running = false; clearTimeout(timer);
   if (stream) stream.getTracks().forEach((t) => t.stop());
   stream = null; $('v').srcObject = null;
-  loggedIn = false; faceDetected = false; faceSecs = 0; totals = zero(); expression = null; prompt = null; promptAction = null;
+  loggedIn = false; faceDetected = false; faceSecs = 0; totals = zero(); expression = null; prompt = null; promptAction = null; moodEvent = null;
+  moodStreakLabel = null; moodStreakSecs = 0; lastPromptAt = 0;
   status = 'idle'; ui(); publish(true);
 }
 
 $('consent').addEventListener('change', () => ui());
 $('go').addEventListener('click', start);
 $('stop').addEventListener('click', stop);
-$('accept').addEventListener('click', () => { promptAction = 'accepted'; prompt = null; ui(); publish(true); });
-$('dismiss').addEventListener('click', () => { promptAction = 'dismissed'; prompt = null; ui(); publish(true); });
 
 window.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'streamlit:render') {

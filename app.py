@@ -9,6 +9,7 @@ st.set_page_config(
 )
 
 from cosmo_camera import cosmo_camera
+from cosmo_voice import cosmo_voice
 
 st.session_state.setdefault("cosmo_authenticated", False)
 st.session_state.setdefault("cosmo_selected_page", "Mission Overview")
@@ -16,6 +17,12 @@ st.session_state.setdefault("cosmo_cam_gen", 0)
 st.session_state.setdefault("cosmo_chat_open", False)
 st.session_state.setdefault("cosmo_last_prompt_action", None)
 st.session_state.setdefault("cosmo_expression_totals", {})
+st.session_state.setdefault("cosmo_pending_mood", None)
+st.session_state.setdefault("cosmo_chat_history", [])
+st.session_state.setdefault("cosmo_mood_checkin_started", False)
+st.session_state.setdefault("cosmo_voice_response_text", "")
+st.session_state.setdefault("cosmo_voice_response_id", 0)
+st.session_state.setdefault("cosmo_last_voice_event_id", None)
 
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
@@ -41,6 +48,8 @@ with st.sidebar:
         and st.session_state.cosmo_last_prompt_action != "accepted"
     ):
         st.session_state.cosmo_chat_open = True
+        st.session_state.cosmo_pending_mood = cam.get("moodEvent")
+        st.session_state.cosmo_mood_checkin_started = False
     st.session_state.cosmo_last_prompt_action = cam["promptAction"]
 
     if st.session_state.cosmo_authenticated:
@@ -59,6 +68,12 @@ with st.sidebar:
             st.session_state.cosmo_authenticated = False
             st.session_state.cosmo_selected_page = "Mission Overview"
             st.session_state.cosmo_chat_open = False
+            st.session_state.cosmo_chat_history = []
+            st.session_state.cosmo_pending_mood = None
+            st.session_state.cosmo_mood_checkin_started = False
+            st.session_state.cosmo_voice_response_text = ""
+            st.session_state.cosmo_voice_response_id = 0
+            st.session_state.cosmo_last_voice_event_id = None
             st.session_state.cosmo_cam_gen += 1
             st.rerun()
     elif cam["loggedIn"]:
@@ -93,12 +108,141 @@ if not st.session_state.cosmo_authenticated:
 else:
     st.success("Welcome to the Cosmo Care mission console.")
 
-    if st.session_state.cosmo_chat_open:
-        st.markdown("### 💬 Support assistant")
-        st.write("The support assistant will open here. (Chatbot integration is not added yet.)")
-        if st.button("Close assistant", key="cosmo_close_chat"):
-            st.session_state.cosmo_chat_open = False
+    # Manual companion access: astronauts can start a conversation at any time,
+    # independently of the camera's uncertain expression estimate.
+    if not st.session_state.cosmo_chat_open:
+        if st.button("💬 Talk to Cosmo", type="primary", key="cosmo_manual_chat"):
+            st.session_state.cosmo_chat_open = True
+            st.session_state.cosmo_pending_mood = None
+            st.session_state.cosmo_mood_checkin_started = False
             st.rerun()
+
+    if st.session_state.cosmo_chat_open:
+        import os
+
+        from modules.astro_agent_companion import get_astro_agent_response
+
+        # Streamlit Cloud secrets are exposed through st.secrets, not automatically
+        # as environment variables. Copy the OpenRouter settings into this process.
+        try:
+            if st.secrets.get("OPENROUTER_API_KEY"):
+                os.environ["OPENROUTER_API_KEY"] = st.secrets["OPENROUTER_API_KEY"]
+            if st.secrets.get("OPENROUTER_MODEL"):
+                os.environ["OPENROUTER_MODEL"] = st.secrets["OPENROUTER_MODEL"]
+            if st.secrets.get("GROQ_API_KEY"):
+                os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+            if st.secrets.get("GROQ_MODEL"):
+                os.environ["GROQ_MODEL"] = st.secrets["GROQ_MODEL"]
+        except Exception:
+            pass
+
+        st.markdown("### 💬 Cosmo Care companion")
+        st.caption("A friendly conversation partner — not a mental-health diagnostic tool.")
+
+        st.caption("Voice-first companion with text chat as a fallback.")
+
+        # The browser component handles microphone input and spoken playback.
+        # Only replies to voice-originated messages are sent back for speech.
+        voice_event = cosmo_voice(
+            response_text=st.session_state.cosmo_voice_response_text,
+            response_id=st.session_state.cosmo_voice_response_id,
+            key="cosmo_voice_interface",
+            active=True,
+        )
+
+        if (
+            isinstance(voice_event, dict)
+            and voice_event.get("type") == "transcript"
+            and voice_event.get("eventId") != st.session_state.cosmo_last_voice_event_id
+        ):
+            st.session_state.cosmo_last_voice_event_id = voice_event.get("eventId")
+            spoken_message = (voice_event.get("text") or "").strip()
+            if spoken_message:
+                st.session_state.cosmo_chat_history.append(
+                    {"role": "user", "content": spoken_message}
+                )
+                try:
+                    voice_reply = get_astro_agent_response(
+                        st.session_state.cosmo_chat_history[:-1],
+                        user_message=spoken_message,
+                    )
+                    st.session_state.cosmo_chat_history.append(
+                        {"role": "assistant", "content": voice_reply}
+                    )
+                    st.session_state.cosmo_voice_response_text = voice_reply
+                    st.session_state.cosmo_voice_response_id += 1
+                except RuntimeError as exc:
+                    st.session_state.cosmo_voice_response_text = (
+                        "I'm having trouble connecting right now. Please try again in a moment."
+                    )
+                    st.session_state.cosmo_voice_response_id += 1
+                    st.error(str(exc))
+                st.rerun()
+
+        # Start one gentle greeting when the companion is opened, whether by
+        # accepting a camera prompt or by using the manual Talk to Cosmo button.
+        if (
+            not st.session_state.cosmo_mood_checkin_started
+            and (
+                st.session_state.cosmo_pending_mood is not None
+                or not st.session_state.cosmo_chat_history
+            )
+        ):
+            with st.spinner("Your companion is getting ready..."):
+                try:
+                    opening = get_astro_agent_response(
+                        st.session_state.cosmo_chat_history,
+                        mood_context=st.session_state.cosmo_pending_mood,
+                    )
+                    st.session_state.cosmo_chat_history.append(
+                        {"role": "assistant", "content": opening}
+                    )
+                    st.session_state.cosmo_voice_response_text = opening
+                    st.session_state.cosmo_voice_response_id += 1
+                    st.session_state.cosmo_mood_checkin_started = True
+                    st.session_state.cosmo_pending_mood = None
+                    st.rerun()
+                except RuntimeError as exc:
+                    st.error(str(exc))
+                    st.info(
+                        "If OpenRouter is rate-limited, add GROQ_API_KEY to Streamlit "
+                        "app secrets to enable the backup provider. At least one valid "
+                        "provider key is required. Never put API keys in source code."
+                    )
+
+        for message in st.session_state.cosmo_chat_history:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        user_message = st.chat_input("Talk to your companion...", key="cosmo_chat_input")
+        if user_message:
+            st.session_state.cosmo_chat_history.append(
+                {"role": "user", "content": user_message}
+            )
+            try:
+                reply = get_astro_agent_response(
+                    st.session_state.cosmo_chat_history[:-1],
+                    user_message=user_message,
+                )
+                st.session_state.cosmo_chat_history.append(
+                    {"role": "assistant", "content": reply}
+                )
+            except RuntimeError as exc:
+                st.error(str(exc))
+            st.rerun()
+
+        left, right = st.columns(2)
+        with left:
+            if st.button("Close assistant", key="cosmo_close_chat"):
+                st.session_state.cosmo_chat_open = False
+                st.rerun()
+        with right:
+            if st.button("New conversation", key="cosmo_new_chat"):
+                st.session_state.cosmo_chat_history = []
+                st.session_state.cosmo_pending_mood = None
+                st.session_state.cosmo_mood_checkin_started = False
+                st.session_state.cosmo_voice_response_text = ""
+                st.rerun()
         st.divider()
 
     page_options = {

@@ -13,6 +13,7 @@ DEFAULT = {
     "totals": {},
     "prompt": None,
     "promptAction": None,
+    "moodEvent": None,
     "error": "",
 }
 
@@ -21,7 +22,7 @@ def cosmo_camera(
     key="cosmo_camera",
     login_seconds=3,
     prompt_seconds=10,
-    prompt_labels=("sadness", "anger", "fear"),
+    prompt_labels=("neutral", "happiness", "surprise", "sadness", "anger", "disgust", "fear", "contempt"),
     model_url="./emotion-ferplus-8.onnx",
     active=True,
 ):
