@@ -32,23 +32,96 @@ button:disabled{opacity:.4;cursor:not-allowed}.small{font-size:.78rem;color:#9aa
 (() => {
 const $ = id => document.getElementById(id);
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let questions=[], index=0, answers=[], recognition=null, listening=false, active=false, runId=null, lastRunId=null, finished=false;
+let questions=[], index=0, answers=[], recognition=null, listening=false, active=false, runId=null, lastRunId=null, finished=false, answerReady=false, listenTimer=null;
 function send(value){window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:setComponentValue",value,dataType:"json"},"*");}
 function resize(){window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:setFrameHeight",height:Math.ceil(document.body.scrollHeight)+8},"*");}
 function status(s){$("status").textContent=s;}
-function buttons(){$("start").disabled=active||finished||!SpeechRecognition;$("repeat").disabled=!active||listening;$("skip").disabled=!active||listening;$("stop").disabled=!active;}
-function stopListening(){if(recognition&&listening){try{recognition.stop();}catch(e){}}listening=false;}
-function showQuestion(){if(index>=questions.length){complete();return;}$("step").textContent="Question "+(index+1)+" of "+questions.length+": "+questions[index];$("bar").style.width=(index/questions.length*100)+"%";$("answer").textContent=answers[index]||"Waiting for your answer…";status("Cosmo Care is asking the question…");speakQuestion();}
-function speakQuestion(){if(!active||index>=questions.length)return;if(!("speechSynthesis" in window)){status("Spoken questions are unavailable. Please use the fill-in checkup below.");return;}window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(questions[index]);u.lang="en-US";u.rate=.92;u.onend=()=>{if(active)startListening();};u.onerror=()=>{if(active)status("Could not play the question aloud. Press Repeat or use the form.");};window.speechSynthesis.speak(u);}
-function startListening(){if(!active||!SpeechRecognition){status("Speech recognition is not supported. Use the fill-in checkup below.");return;}try{recognition=new SpeechRecognition();recognition.lang="en-US";recognition.continuous=false;recognition.interimResults=false;recognition.maxAlternatives=1;recognition.onstart=()=>{listening=true;status("Listening… please answer now.");buttons();};recognition.onresult=e=>{const t=(e.results[0][0].transcript||"").trim();if(t){answers[index]=t;$("answer").textContent=t;status("Answer recorded.");stopListening();window.setTimeout(nextQuestion,700);}};recognition.onerror=e=>{listening=false;if(e.error==="not-allowed"||e.error==="service-not-allowed")status("Microphone permission denied. Allow microphone access or use the form.");else if(e.error==="no-speech")status("I didn't hear an answer. Press Repeat or Skip.");else status("Speech recognition issue ("+e.error+"). Try again or use the form.");buttons();};recognition.onend=()=>{listening=false;buttons();};recognition.start();}catch(e){listening=false;status("Could not start the microphone. Please use the fill-in checkup.");buttons();}}
+function buttons(){
+  $("start").disabled=active||finished||!SpeechRecognition;
+  $("repeat").disabled=!active||listening;
+  $("next").disabled=!active||listening||!answerReady;
+  $("skip").disabled=!active||listening;
+  $("stop").disabled=!active;
+}
+function stopListening(){
+  if(listenTimer){clearTimeout(listenTimer);listenTimer=null;}
+  if(recognition&&listening){try{recognition.stop();}catch(e){}}
+  listening=false;
+}
+function showQuestion(){
+  if(index>=questions.length){complete();return;}
+  answerReady=false;
+  $("step").textContent="Question "+(index+1)+" of "+questions.length+": "+questions[index];
+  $("bar").style.width=(index/questions.length*100)+"%";
+  $("answer").textContent="Waiting for your answer…";
+  status("Cosmo Care is asking the question…");buttons();speakQuestion();
+}
+function speakQuestion(){
+  if(!active||index>=questions.length)return;
+  stopListening();
+  if(!("speechSynthesis" in window)){status("Spoken questions are unavailable. Please use the fill-in checkup below.");return;}
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(questions[index]);u.lang="en-US";u.rate=.92;
+  u.onend=()=>{if(active){status("Question finished. Get ready to answer…");listenTimer=window.setTimeout(()=>{if(active&&!answerReady)startListening();},1400);}};
+  u.onerror=()=>{if(active)status("Could not play the question aloud. Press Repeat or use the form.");};
+  window.speechSynthesis.speak(u);
+}
+function isQuestionEcho(transcript){
+  const words=s=>s.toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>2);
+  const heard=words(transcript), asked=words(questions[index]||"");
+  if(!heard.length||!asked.length)return false;
+  const askedSet=new Set(asked);
+  const overlap=heard.filter(w=>askedSet.has(w)).length/Math.max(1,new Set(heard).size);
+  return transcript.toLowerCase().includes((questions[index]||"").toLowerCase())||overlap>=0.62;
+}
+function startListening(){
+  if(!active||!SpeechRecognition){status("Speech recognition is not supported. Use the fill-in checkup below.");return;}
+  try{
+    recognition=new SpeechRecognition();recognition.lang="en-US";recognition.continuous=false;recognition.interimResults=false;recognition.maxAlternatives=1;
+    recognition.onstart=()=>{listening=true;status("Listening… please answer now.");buttons();};
+    recognition.onresult=e=>{
+      const result=e.results&&e.results[0];const t=(result&&result[0]&&result[0].transcript||"").trim();if(!t)return;
+      if(isQuestionEcho(t)){
+        status("I heard the spoken question, not your answer. Please answer after the prompt.");
+        stopListening();listenTimer=window.setTimeout(()=>{if(active&&!answerReady)startListening();},1000);return;
+      }
+      answers[index]=t;answerReady=true;$("answer").textContent=t;
+      status("Answer recorded. Press Next question when you are ready.");stopListening();buttons();
+    };
+    recognition.onerror=e=>{
+      listening=false;
+      if(e.error==="not-allowed"||e.error==="service-not-allowed")status("Microphone permission denied. Allow microphone access or use the form.");
+      else if(e.error==="no-speech")status("I didn't hear an answer. Try again, repeat, or skip.");
+      else status("Speech recognition issue ("+e.error+"). Try again or use the form.");
+      buttons();
+    };
+    recognition.onend=()=>{listening=false;buttons();};recognition.start();
+  }catch(e){listening=false;status("Could not start the microphone. Please use the fill-in checkup.");buttons();}
+}
 function nextQuestion(){if(!active)return;index++;showQuestion();buttons();resize();}
-function complete(){active=false;finished=true;$("bar").style.width="100%";$("step").textContent="Checkup interview completed";status("Your answers have been sent to the checkup report.");$("answer").textContent=answers.map((a,i)=>(i+1)+". "+questions[i]+"\n"+(a||"Skipped")).join("\n\n");buttons();send({type:"voice_checkup_complete",runId:runId,answers:questions.map((q,i)=>({question:q,answer:answers[i]||"Skipped"})),completed:true});resize();}
-function start(){if(!SpeechRecognition){status("This browser does not support speech recognition. Please use the form below.");return;}if(!questions.length)return;active=true;finished=false;index=0;answers=[];buttons();showQuestion();}
+function complete(){
+  active=false;finished=true;stopListening();$("bar").style.width="100%";
+  $("step").textContent="Checkup interview completed";status("Your answers have been sent to the checkup report.");
+  $("answer").textContent=answers.map((a,i)=>(i+1)+". "+questions[i]+"\n"+(a||"Skipped")).join("\n\n");
+  buttons();send({type:"voice_checkup_complete",runId:runId,answers:questions.map((q,i)=>({question:q,answer:answers[i]||"Skipped"})),completed:true});resize();
+}
+function start(){
+  if(!SpeechRecognition){status("This browser does not support speech recognition. Please use the form below.");return;}
+  if(!questions.length)return;active=true;finished=false;index=0;answers=[];answerReady=false;buttons();showQuestion();
+}
 $("start").addEventListener("click",start);
-$("repeat").addEventListener("click",()=>{if(active){stopListening();speakQuestion();buttons();}});
-$("skip").addEventListener("click",()=>{if(active){stopListening();answers[index]="Skipped";nextQuestion();}});
+$("repeat").addEventListener("click",()=>{if(active){answerReady=false;answers[index]="";stopListening();speakQuestion();buttons();}});
+$("next").addEventListener("click",()=>{if(active&&answerReady)nextQuestion();});
+$("skip").addEventListener("click",()=>{if(active){stopListening();answers[index]="Skipped";answerReady=false;nextQuestion();}});
 $("stop").addEventListener("click",()=>{active=false;stopListening();if("speechSynthesis"in window)window.speechSynthesis.cancel();status("Voice checkup stopped. You can restart it or use the form.");buttons();});
-window.addEventListener("message",e=>{const d=e.data;if(!d||d.type!=="streamlit:render")return;const a=d.args||{};questions=Array.isArray(a.questions)?a.questions:[];if(a.runId!==undefined&&a.runId!==lastRunId){lastRunId=a.runId;runId=a.runId;active=false;finished=false;index=0;answers=[];$("step").textContent="Ready to begin?";$("bar").style.width="0%";$("answer").textContent="Your transcribed answer will appear here.";status("Press Start checkup when you're ready.");}buttons();resize();});
+window.addEventListener("message",e=>{
+  const d=e.data;if(!d||d.type!=="streamlit:render")return;const a=d.args||{};questions=Array.isArray(a.questions)?a.questions:[];
+  if(a.runId!==undefined&&a.runId!==lastRunId){
+    lastRunId=a.runId;runId=a.runId;active=false;finished=false;index=0;answers=[];answerReady=false;
+    $("step").textContent="Ready to begin?";$("bar").style.width="0%";$("answer").textContent="Your transcribed answer will appear here.";status("Press Start checkup when you're ready.");
+  }
+  buttons();resize();
+});
 if(!SpeechRecognition){status("Speech recognition is not supported in this browser. Use the fill-in checkup below.");$("start").disabled=true;}
 window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:componentReady",apiVersion:1},"*");resize();
 })();
