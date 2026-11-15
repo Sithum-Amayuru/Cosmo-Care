@@ -1,7 +1,6 @@
 """Astronaut Health Intelligence — integrated mission prototype workspace."""
 from datetime import datetime, timezone
 from statistics import median
-import math
 import random
 
 import pandas as pd
@@ -83,9 +82,6 @@ if scenario == "Custom readings":
 else:
     hr, sbp, dbp, hrv, co2, ectopic, dizzy, headache, region, symptom, pain = base
     st.info(f"Scenario preset: HR {hr:g} bpm · BP {sbp:g}/{dbp:g} mmHg · HRV {hrv:g} ms")
-    if st.button("Generate slight variation", key="intel_variation"):
-        hr = round(hr + random.uniform(-2, 2), 1)
-        hrv = round(max(1, hrv + random.uniform(-2, 2)), 1)
 
 if st.button("Analyse crew snapshot", type="primary", key="intel_analyse"):
     if dbp >= sbp:
@@ -253,10 +249,6 @@ distance_km = st.number_input(
     min_value=0.0, max_value=1_000_000_000.0, value=384400.0,
     step=10000.0, format="%.1f", key="intel_distance",
 )
-lead = DeepSpaceSupplyEngine.calculate_lead_times(
-    # The method only uses self for no state; call the same calculation formula below
-    distance_km
-) if False else None
 # Calculate using the teammate engine's documented constants/formula.
 light_hours = distance_km / 299792.458 / 3600.0
 cargo_days = distance_km / 20.0 / 86400.0
