@@ -34,6 +34,37 @@ def get_database() -> DatabaseManager:
     return DatabaseManager(db_name=get_database_path(), seed_demo_data=False)
 
 
+def clear_health_records() -> None:
+    """Delete persisted prototype health and monitoring records, keeping mission configuration."""
+    db = get_database()
+    tables = (
+        "ai_chat_history",
+        "medical_exam_records",
+        "symptom_and_mood_logs",
+        "sleep_sessions",
+        "live_vitals_telemetry",
+        "environment_logs",
+        "radiation_logs",
+        "crew_danger_alerts",
+        "notifications",
+    )
+    conn = db.get_connection()
+    try:
+        for table in tables:
+            conn.execute(f"DELETE FROM {table}")
+        placeholders = ",".join("?" for _ in tables)
+        conn.execute(
+            f"DELETE FROM sqlite_sequence WHERE name IN ({placeholders})",
+            tables,
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def get_prototype_triage(vitals: AstronautVitals) -> dict:
     """Run the retained experimental engine but suppress unvalidated treatment steps."""
     result = BioAstronauticsLogic.evaluate_triage(vitals)
@@ -63,5 +94,6 @@ __all__ = [
     "RadiationMonitorLogic",
     "get_database",
     "get_database_path",
+    "clear_health_records",
     "get_prototype_triage",
 ]
