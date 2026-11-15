@@ -24,9 +24,12 @@ st.session_state.setdefault("cosmo_mood_checkin_started", False)
 st.session_state.setdefault("cosmo_voice_response_text", "")
 st.session_state.setdefault("cosmo_voice_response_id", 0)
 st.session_state.setdefault("cosmo_last_voice_event_id", None)
+st.session_state.setdefault("cosmo_show_reset_confirmation", False)
 
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
+if st.session_state.get("cosmo_reset_warning"):
+    st.warning(st.session_state.pop("cosmo_reset_warning"))
 
 # The camera runs in the browser (face detection + expression estimate), so video
 # never leaves the user's device. The component lives in a fixed container at the
@@ -94,6 +97,53 @@ with st.sidebar:
         "Expression labels are visual model estimates, not psychological assessments. "
         "Camera access requires browser permission."
     )
+    st.divider()
+    with st.expander("Reset Cosmo Care and start over"):
+        st.warning(
+            "This will log you out, stop the camera, clear this session's checkups, "
+            "chat, crew observations and radiation history, and delete saved health/"
+            "monitoring records from the prototype database."
+        )
+        if not st.session_state.cosmo_show_reset_confirmation:
+            if st.button("Reset app", key="cosmo_show_reset", use_container_width=True):
+                st.session_state.cosmo_show_reset_confirmation = True
+                st.rerun()
+        else:
+            st.error("Are you sure? This reset cannot be undone.")
+            confirm_col, cancel_col = st.columns(2)
+            with confirm_col:
+                if st.button("Yes, reset", key="cosmo_confirm_reset", type="primary", use_container_width=True):
+                    try:
+                        from modules.mission_backend import clear_health_records
+                        clear_health_records()
+                        reset_message = None
+                    except Exception as exc:
+                        reset_message = str(exc)
+                    st.session_state.clear()
+                    st.session_state.cosmo_authenticated = False
+                    st.session_state.cosmo_selected_page = "Mission Overview"
+                    st.session_state.cosmo_cam_gen = 1
+                    st.session_state.cosmo_chat_open = False
+                    st.session_state.cosmo_chat_history = []
+                    st.session_state.cosmo_expression_totals = {}
+                    st.session_state.cosmo_pending_mood = None
+                    st.session_state.cosmo_mood_checkin_started = False
+                    st.session_state.cosmo_voice_response_text = ""
+                    st.session_state.cosmo_voice_response_id = 0
+                    st.session_state.cosmo_last_voice_event_id = None
+                    st.session_state.cosmo_last_prompt_action = None
+                    st.session_state.cosmo_show_reset_confirmation = False
+                    if reset_message:
+                        st.session_state.cosmo_reset_warning = (
+                            "Session data was cleared, but the prototype database could "
+                            "not be cleared: " + reset_message
+                        )
+                    st.rerun()
+            with cancel_col:
+                if st.button("Cancel", key="cosmo_cancel_reset", use_container_width=True):
+                    st.session_state.cosmo_show_reset_confirmation = False
+                    st.rerun()
+
 
 if not st.session_state.cosmo_authenticated:
     st.markdown("## Mission access required")
