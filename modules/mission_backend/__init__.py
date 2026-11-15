@@ -6,6 +6,7 @@ an explicit demo-seeding option is requested by a developer.
 from functools import lru_cache
 from pathlib import Path
 import os
+import tempfile
 
 from .logic import (
     AstronautVitals,
@@ -21,7 +22,10 @@ def get_database_path() -> str:
     configured = os.environ.get("COSMO_CARE_DB_PATH")
     if configured:
         return configured
-    return str(Path(__file__).resolve().parent / "cosmo_care.db")
+    module_dir = Path(__file__).resolve().parent
+    if os.access(module_dir, os.W_OK):
+        return str(module_dir / "cosmo_care.db")
+    return str(Path(tempfile.gettempdir()) / "cosmo_care.db")
 
 
 @lru_cache(maxsize=1)
