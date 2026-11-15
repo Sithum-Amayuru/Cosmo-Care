@@ -47,6 +47,10 @@ def clear_health_records() -> None:
         "radiation_logs",
         "crew_danger_alerts",
         "notifications",
+        "astronaut_attributes",
+        "consumption_logs",
+        "reorder_transmissions",
+        "astronauts",
     )
     conn = db.get_connection()
     try:
