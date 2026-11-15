@@ -121,6 +121,10 @@ if last and last["snapshot"]["astronaut_id"] == astronaut_id:
         "Localized Neuromuscular Hyper-Excitability": "Possible muscle or nerve irritation pattern",
         "Autonomic Overdrive": "Possible stress-response pattern",
         "Mechanical Overload": "Possible muscle overexertion pattern",
+        "Microgravity Intervertebral Disc Expansion & Spinal Elongation": "Possible back discomfort pattern",
+        "Autonomic Sympathetic Overdrive & Somatized Tension": "Possible stress and muscle-tension pattern",
+        "Countermeasure Mechanical Overload": "Possible exercise-related muscle soreness",
+        "Nominal Microgravity Homeostasis": "No unusual pattern detected",
     }
     friendly_title = next(
         (title for technical, title in friendly_titles.items() if technical.lower() in diagnosis.lower()),
