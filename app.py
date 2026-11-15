@@ -19,6 +19,8 @@ st.session_state.setdefault("cosmo_expression_totals", {})
 st.session_state.setdefault("cosmo_pending_mood", None)
 st.session_state.setdefault("cosmo_chat_history", [])
 st.session_state.setdefault("cosmo_mood_checkin_started", False)
+st.session_state.setdefault("cosmo_companion_engine", "Current Cosmo")
+st.session_state.setdefault("cosmo_previous_engine", "Current Cosmo")
 
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
@@ -111,6 +113,24 @@ else:
         import os
 
         from modules.mood_companion import get_companion_response
+        from modules.astro_agent_companion import get_astro_agent_response
+
+        selected_engine = st.selectbox(
+            "Companion engine",
+            ["Current Cosmo", "Astronaut Agent (Beta)"],
+            key="cosmo_companion_engine",
+            help="The beta uses your teammate’s companion behaviour through OpenRouter.",
+        )
+        if selected_engine != st.session_state.cosmo_previous_engine:
+            st.session_state.cosmo_chat_history = []
+            st.session_state.cosmo_mood_checkin_started = False
+            st.session_state.cosmo_previous_engine = selected_engine
+
+        get_selected_response = (
+            get_astro_agent_response
+            if selected_engine == "Astronaut Agent (Beta)"
+            else get_companion_response
+        )
 
         # Streamlit Cloud secrets are exposed through st.secrets, not automatically
         # as environment variables. Copy the OpenRouter settings into this process.
@@ -130,7 +150,7 @@ else:
         if not st.session_state.cosmo_mood_checkin_started:
             with st.spinner("Your companion is getting ready..."):
                 try:
-                    opening = get_companion_response(
+                    opening = get_selected_response(
                         st.session_state.cosmo_chat_history,
                         mood_context=st.session_state.cosmo_pending_mood,
                     )
@@ -156,7 +176,7 @@ else:
                 {"role": "user", "content": user_message}
             )
             try:
-                reply = get_companion_response(
+                reply = get_selected_response(
                     st.session_state.cosmo_chat_history[:-1],
                     user_message=user_message,
                 )
