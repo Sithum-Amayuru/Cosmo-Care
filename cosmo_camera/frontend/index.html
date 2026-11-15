@@ -168,7 +168,7 @@ async function tick() {
             } else {
               moodStreakLabel = null; moodStreakSecs = 0;
             }
-            const cooldownPassed = now - lastPromptAt >= args.promptCooldownSeconds * 1000;
+            const cooldownPassed = lastPromptAt === 0 || now - lastPromptAt >= args.promptCooldownSeconds * 1000;
             if (eligible && moodStreakSecs >= args.promptSeconds && !prompt && cooldownPassed) {
               prompt = expression.label; promptAction = null; lastPromptAt = now;
               moodStreakLabel = null; moodStreakSecs = 0;
