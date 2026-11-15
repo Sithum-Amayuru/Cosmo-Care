@@ -1,4 +1,5 @@
 import runpy
+from datetime import date
 
 import streamlit as st
 
@@ -250,8 +251,28 @@ else:
         "Radiation Monitoring": "views/radiation_monitoring.py",
         "Crew & Environment": "views/crew_environment.py",
         "Personalized Health": "views/personalized_health.py",
+        "Daily Health Checkup": "views/health_checkup.py",
         "Reports & Data": "views/reports_and_data.py",
     }
+
+    # A daily reminder is shown when the astronaut opens the app. It is not a
+    # push notification and it does not call an AI provider.
+    today_key = date.today().isoformat()
+    if (
+        st.session_state.get("cosmo_checkup_completed_date") != today_key
+        and st.session_state.get("cosmo_checkup_prompt_dismissed_date") != today_key
+    ):
+        st.info("Your daily health checkup has not been completed today.")
+        prompt_col, later_col = st.columns(2)
+        with prompt_col:
+            if st.button("Start today's checkup", type="primary", key="cosmo_start_daily_checkup"):
+                st.session_state.cosmo_selected_page = "Daily Health Checkup"
+                st.rerun()
+        with later_col:
+            if st.button("Remind me later", key="cosmo_dismiss_daily_checkup"):
+                st.session_state.cosmo_checkup_prompt_dismissed_date = today_key
+                st.rerun()
+
     selected_page = st.sidebar.radio(
         "Mission workspace",
         list(page_options.keys()),
