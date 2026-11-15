@@ -4,6 +4,15 @@ from ui_theme import apply_theme, render_hero
 apply_theme()
 render_hero()
 
+def _select_workspace(page_name):
+    st.session_state.cosmo_selected_page = page_name
+
+
+def _open_crew_health(name):
+    st.session_state.cosmo_selected_page = "Astronaut Health Intelligence"
+    st.session_state.intel_astronaut = name
+
+
 st.markdown("## Mission overview")
 st.caption("A clear snapshot of crew wellbeing and spacecraft monitoring activity.")
 st.info(
@@ -61,14 +70,6 @@ c.metric("Health analyses", intel_count, help="Crew health snapshots analysed in
 
 st.markdown("### Choose a workspace")
 st.caption("Open a monitoring area to review readings, run a simulation or export session records.")
-
-def _select_workspace(page_name):
-    st.session_state.cosmo_selected_page = page_name
-
-
-def _open_crew_health(name):
-    st.session_state.cosmo_selected_page = "Astronaut Health Intelligence"
-    st.session_state.intel_astronaut = name
 
 pages = [
     ("🩺 Crew health", "Understand health-pattern results and explore the technical measurements when needed.", "Astronaut Health Intelligence"),
