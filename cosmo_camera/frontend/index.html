@@ -98,12 +98,8 @@ function ui(progress = 0) {
     : '';
   $('msg').textContent = (MSG[status] || '') + (status === 'models-failed' || status === 'camera-unavailable' ? ` ${error}` : '');
   $('msg').className = ['camera-denied', 'models-failed'].includes(status) ? 'bad' : '';
-  $('prompt').hidden = !prompt;
-  if (prompt === "neutral") {
-    $("promptText").textContent = "Hey! Want to talk for a bit? No pressure — your companion is here whenever you want.";
-  } else if (prompt) {
-    $("promptText").textContent = `The camera has repeatedly estimated the facial expression "${prompt}". This is only an uncertain visual estimate, not a measure of how you feel. Would you like to talk with your companion?`;
-  }
+  // Emotion check-ins start automatically; no in-app accept/dismiss prompt.
+  $('prompt').hidden = true;
   resize();
 }
 
@@ -170,7 +166,12 @@ async function tick() {
             }
             const cooldownPassed = lastPromptAt === 0 || now - lastPromptAt >= args.promptCooldownSeconds * 1000;
             if (eligible && moodStreakSecs >= args.promptSeconds && !prompt && cooldownPassed) {
-              prompt = expression.label; promptAction = null; lastPromptAt = now;
+              // Automatically open Cosmo with the detected expression as context.
+              // The model treats this as an uncertain visual estimate, not a fact.
+              moodEvent = expression.label;
+              promptAction = 'accepted';
+              prompt = null;
+              lastPromptAt = now;
               moodStreakLabel = null; moodStreakSecs = 0;
             }
           } finally { busy = false; }
@@ -212,8 +213,6 @@ function stop() {
 $('consent').addEventListener('change', () => ui());
 $('go').addEventListener('click', start);
 $('stop').addEventListener('click', stop);
-$('accept').addEventListener('click', () => { moodEvent = prompt; promptAction = 'accepted'; prompt = null; ui(); publish(true); });
-$('dismiss').addEventListener('click', () => { promptAction = 'dismissed'; prompt = null; ui(); publish(true); });
 
 window.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'streamlit:render') {
