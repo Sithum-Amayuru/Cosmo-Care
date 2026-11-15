@@ -43,18 +43,78 @@ for sb_candidate in (
 st.markdown(
     f"""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@800;900&family=Montserrat:wght@400;500&display=swap');
+
     section[data-testid="stSidebar"] {{
         background: linear-gradient(rgba(4, 12, 32, 0.35), rgba(4, 12, 32, 0.45)),
                     url("{sidebar_bg_url}") no-repeat center center !important;
         background-size: cover !important;
     }}
+
+    .cosmo-custom-header {{
+        margin-bottom: 18px;
+    }}
+
+    .cosmo-title-row {{
+        font-family: 'Orbitron', sans-serif;
+        font-size: 3.1rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        line-height: 1.1;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
+    }}
+
+    .cosmo-word-white {{
+        color: #ffffff;
+        display: inline-flex;
+        align-items: center;
+    }}
+
+    .cosmo-word-cyan {{
+        color: #00c8ff;
+    }}
+
+    .cosmo-star-o {{
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }}
+
+    .cosmo-star-o svg {{
+        position: absolute;
+        width: 0.42em;
+        height: 0.42em;
+        fill: #ffffff;
+    }}
+
+    .cosmo-subtitle-row {{
+        font-family: 'Montserrat', sans-serif;
+        font-size: 0.92rem;
+        font-weight: 400;
+        letter-spacing: 0.42em;
+        color: #e2e8f0;
+        text-transform: uppercase;
+        margin-top: 8px;
+        padding-left: 4px;
+    }}
     </style>
+
+    <div class="cosmo-custom-header">
+        <div class="cosmo-title-row">
+            <span class="cosmo-word-white">
+                C<span class="cosmo-star-o">O<svg viewBox="0 0 24 24"><path d="M12 1L14.8 9.2L23 12L14.8 14.8L12 23L9.2 14.8L1 12L9.2 9.2Z"/></svg></span>SMO
+            </span>
+            <span class="cosmo-word-cyan">C&#923;RE</span>
+        </div>
+        <div class="cosmo-subtitle-row">HEALTHCARE BEYOND EARTH</div>
+    </div>
     """,
     unsafe_allow_html=True,
 )
-
-st.title("COSMO CARE")
-st.caption("Astronaut health and mission-safety monitoring prototype")
 
 with st.sidebar:
     st.markdown("## 🛰️ Mission access")
