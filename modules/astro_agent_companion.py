@@ -11,7 +11,7 @@ import urllib.request
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_MODEL = "openrouter/free"
+DEFAULT_MODEL = "baidu/ernie-5.5-flash-preview:free"
 
 VOICE_CORRECTIONS = {
     "sea oh two": "CO2",
@@ -106,18 +106,24 @@ def get_astro_agent_response(history, user_message=None, mood_context=None,
         "role": "system",
         "content": _build_system_prompt(astronaut_name, mood_context),
     }]
-    messages.extend(history[-12:])
+    messages.extend(history[-8:])
     if user_message is not None:
         messages.append({
             "role": "user",
             "content": clean_voice_transcript(user_message),
         })
 
+    configured_model = os.getenv("OPENROUTER_MODEL", "").strip()
+    # Replace the old random free-model router with a fixed, fast conversational
+    # model. Keep any other explicitly configured model override.
+    if not configured_model or configured_model == "openrouter/free":
+        configured_model = DEFAULT_MODEL
+
     payload = {
-        "model": os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL),
+        "model": configured_model,
         "messages": messages,
         "temperature": 0.6,
-        "max_tokens": 220,
+        "max_tokens": 150,
     }
     request = urllib.request.Request(
         API_URL,
