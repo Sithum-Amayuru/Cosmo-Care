@@ -68,6 +68,12 @@ with st.sidebar:
             st.session_state.cosmo_authenticated = False
             st.session_state.cosmo_selected_page = "Mission Overview"
             st.session_state.cosmo_chat_open = False
+            st.session_state.cosmo_chat_history = []
+            st.session_state.cosmo_pending_mood = None
+            st.session_state.cosmo_mood_checkin_started = False
+            st.session_state.cosmo_voice_response_text = ""
+            st.session_state.cosmo_voice_response_id = 0
+            st.session_state.cosmo_last_voice_event_id = None
             st.session_state.cosmo_cam_gen += 1
             st.rerun()
     elif cam["loggedIn"]:
@@ -171,7 +177,13 @@ else:
 
         # Start one gentle greeting when the companion is opened, whether by
         # accepting a camera prompt or by using the manual Talk to Cosmo button.
-        if not st.session_state.cosmo_mood_checkin_started:
+        if (
+            not st.session_state.cosmo_mood_checkin_started
+            and (
+                st.session_state.cosmo_pending_mood is not None
+                or not st.session_state.cosmo_chat_history
+            )
+        ):
             with st.spinner("Your companion is getting ready..."):
                 try:
                     opening = get_astro_agent_response(
