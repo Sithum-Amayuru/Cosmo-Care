@@ -14,6 +14,9 @@ from .logic import (
     DatabaseManager,
     DeepSpaceSupplyEngine,
     RadiationMonitorLogic,
+    SensorSimulator,
+    RoutineAndSleepTracker,
+    PersonalizedPlanAndExamEngine,
 )
 
 
@@ -96,6 +99,9 @@ __all__ = [
     "DatabaseManager",
     "DeepSpaceSupplyEngine",
     "RadiationMonitorLogic",
+    "SensorSimulator",
+    "RoutineAndSleepTracker",
+    "PersonalizedPlanAndExamEngine",
     "get_database",
     "get_database_path",
     "clear_health_records",
