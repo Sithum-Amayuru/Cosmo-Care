@@ -54,7 +54,7 @@ const MSG = {
 };
 const zero = () => Object.fromEntries(LABELS.map((l) => [l, 0]));
 
-let args = { loginSeconds: 3, promptSeconds: 10, promptConfidence: 0.70, promptCooldownSeconds: 300, promptLabels: ['sadness','anger','fear','neutral'], modelUrl: './emotion-ferplus-8.onnx', active: true };
+let args = { loginSeconds: 3, promptSeconds: 10, promptConfidence: 0.70, neutralPromptConfidence: 0.40, promptCooldownSeconds: 300, promptLabels: ['sadness','anger','fear','neutral'], modelUrl: './emotion-ferplus-8.onnx', active: true };
 let detector = null, session = null, stream = null, timer = null;
 let running = false, busy = false, loggedIn = false, faceDetected = false;
 let faceSecs = 0, lastTick = 0, lastExpr = 0, lastKey = '', lastPeriodic = 0;
@@ -92,7 +92,9 @@ function ui(progress = 0) {
   $('bar').hidden = !(running && !loggedIn);
   $('fill').style.width = `${progress * 100}%`;
   $('chip').textContent = running
-    ? (faceDetected ? 'Face detected' : 'No face detected') + (loggedIn && expression ? ` · ${expression.label}` : '')
+    ? (faceDetected ? 'Face detected' : 'No face detected')
+      + (loggedIn && expression ? ` · ${expression.label} (${Math.round(expression.score * 100)}%)` : '')
+      + (loggedIn && moodStreakLabel ? ` · check-in progress: ${moodStreakLabel} ${Math.floor(moodStreakSecs)}/10s` : '')
     : '';
   $('msg').textContent = (MSG[status] || '') + (status === 'models-failed' || status === 'camera-unavailable' ? ` ${error}` : '');
   $('msg').className = ['camera-denied', 'models-failed'].includes(status) ? 'bad' : '';
@@ -158,7 +160,8 @@ async function tick() {
           try {
             expression = await classify(video, det.boundingBox);
             totals[expression.label] += elapsed;
-            const eligible = args.promptLabels.includes(expression.label) && expression.score >= args.promptConfidence;
+            const requiredConfidence = expression.label === 'neutral' ? args.neutralPromptConfidence : args.promptConfidence;
+            const eligible = args.promptLabels.includes(expression.label) && expression.score >= requiredConfidence;
             if (eligible) {
               if (moodStreakLabel === expression.label) moodStreakSecs += elapsed;
               else { moodStreakLabel = expression.label; moodStreakSecs = elapsed; }
