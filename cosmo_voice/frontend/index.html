@@ -1,0 +1,105 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+body{margin:0;font-family:system-ui,sans-serif;color:#e7edf8;background:#101827;padding:14px}
+.panel{max-width:620px;border:1px solid #29364d;border-radius:14px;padding:16px;background:#151f31}
+.title{font-weight:700;font-size:1rem;margin-bottom:6px}
+.hint{color:#9eacc4;font-size:.85rem;line-height:1.45}
+.status{margin:14px 0;padding:10px 12px;border-radius:9px;background:#202d43;font-size:.9rem}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{border:0;border-radius:9px;padding:10px 14px;font-weight:650;cursor:pointer;color:#06131d;background:#5bd0e8}
+button.secondary{color:#e7edf8;background:transparent;border:1px solid #41516b}
+button:disabled{opacity:.45;cursor:not-allowed}
+.transcript{margin-top:12px;padding:10px 12px;background:#101827;border-radius:9px;min-height:24px;white-space:pre-wrap;overflow-wrap:anywhere}
+.small{font-size:.78rem;color:#91a0b8;margin-top:10px}
+</style></head>
+<body>
+<div class="panel">
+<div class="title">🎙️ Talk to Cosmo</div>
+<div class="hint">Choose push-to-talk for individual messages, or start a continuous voice conversation.</div>
+<div id="status" class="status" role="status">Checking speech support…</div>
+<div class="actions">
+<button id="push">🎤 Push to talk</button>
+<button id="continuous">▶ Start continuous</button>
+<button id="stop" class="secondary" disabled>Stop</button>
+</div>
+<div class="small">Your browser may ask for microphone permission. Speech recognition support depends on the browser and its language services.</div>
+<div id="transcript" class="transcript" aria-live="polite">Your spoken words will appear here.</div>
+</div>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition=null, mode="push", continuousActive=false, listening=false, awaitingResponse=false, speaking=false, lastResponseId=null, active=true, eventCounter=0;
+function postValue(value){window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:setComponentValue",value,dataType:"json"},"*");}
+function status(s){$("status").textContent=s;}
+function renderButtons(){
+$("push").disabled=!SpeechRecognition||listening||speaking||!active;
+$("continuous").disabled=!SpeechRecognition||continuousActive||listening||speaking||!active;
+$("stop").disabled=!(continuousActive||listening||speaking);
+}
+function resize(){window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:setFrameHeight",height:Math.ceil(document.body.scrollHeight)+8},"*");}
+function stopRecognition(){if(recognition&&listening){try{recognition.stop();}catch(e){}}listening=false;}
+function startRecognition(){
+if(!active||!SpeechRecognition||speaking||awaitingResponse||listening)return;
+try{
+recognition=new SpeechRecognition();
+recognition.lang="en-US";
+recognition.continuous=mode==="continuous";
+recognition.interimResults=false;
+recognition.maxAlternatives=1;
+recognition.onstart=()=>{listening=true;status(mode==="continuous"?"Listening… speak naturally. Cosmo will reply when you finish.":"Listening… speak now.");renderButtons();};
+recognition.onresult=event=>{
+let spoken="";
+for(let i=event.resultIndex;i<event.results.length;i++){if(event.results[i].isFinal)spoken+=event.results[i][0].transcript;}
+spoken=spoken.trim();if(!spoken)return;
+$("transcript").textContent="You: "+spoken;
+awaitingResponse=true;stopRecognition();
+postValue({type:"transcript",text:spoken,mode,eventId:String(Date.now())+"-"+(++eventCounter)});
+status("I heard you. Cosmo is thinking…");renderButtons();
+};
+recognition.onerror=event=>{
+listening=false;
+if(event.error==="not-allowed"||event.error==="service-not-allowed"){continuousActive=false;status("Microphone permission denied. Allow microphone access in browser settings.");}
+else if(event.error==="no-speech"){status("I didn't hear anything. Try speaking a little closer to the microphone.");}
+else{status("Speech recognition error: "+event.error+". You can try again.");}
+renderButtons();
+};
+recognition.onend=()=>{
+listening=false;renderButtons();
+if(continuousActive&&!awaitingResponse&&!speaking&&active){setTimeout(startRecognition,350);}
+else if(!awaitingResponse&&!speaking&&!continuousActive){status("Ready. Choose a voice mode to speak to Cosmo.");}
+};
+recognition.start();
+}catch(e){listening=false;status("Could not start speech recognition: "+e.message);renderButtons();}
+}
+function speak(text){
+if(!text||!("speechSynthesis" in window)){
+awaitingResponse=false;status("Cosmo replied, but speech playback is unavailable.");renderButtons();if(continuousActive)setTimeout(startRecognition,500);return;
+}
+window.speechSynthesis.cancel();
+const utterance=new SpeechSynthesisUtterance(text);utterance.lang="en-US";utterance.rate=1;utterance.pitch=1;
+utterance.onstart=()=>{speaking=true;status("Cosmo is speaking…");renderButtons();};
+utterance.onend=()=>{speaking=false;awaitingResponse=false;status(continuousActive?"Cosmo finished. Listening again…":"Cosmo finished speaking. Ready when you are.");renderButtons();if(continuousActive)setTimeout(startRecognition,400);};
+utterance.onerror=()=>{speaking=false;awaitingResponse=false;status("Voice playback was interrupted. You can speak again.");renderButtons();if(continuousActive)setTimeout(startRecognition,600);};
+window.speechSynthesis.speak(utterance);
+}
+$("push").addEventListener("click",()=>{continuousActive=false;mode="push";awaitingResponse=false;startRecognition();renderButtons();});
+$("continuous").addEventListener("click",()=>{mode="continuous";continuousActive=true;awaitingResponse=false;startRecognition();renderButtons();});
+$("stop").addEventListener("click",()=>{continuousActive=false;awaitingResponse=false;stopRecognition();if("speechSynthesis" in window)window.speechSynthesis.cancel();speaking=false;status("Voice session stopped.");renderButtons();});
+window.addEventListener("message",event=>{
+const data=event.data;if(!data||data.type!=="streamlit:render")return;
+const args=data.args||{};active=args.active!==false;
+if(!active){continuousActive=false;stopRecognition();if("speechSynthesis" in window)window.speechSynthesis.cancel();speaking=false;status("Voice interaction is paused.");}
+if(active&&args.responseId!==undefined&&args.responseId!==lastResponseId){
+lastResponseId=args.responseId;if(args.responseText)speak(args.responseText);
+}
+renderButtons();resize();
+});
+if(!SpeechRecognition){status("Speech recognition is not supported here. Try the latest Google Chrome desktop browser.");$("push").disabled=true;$("continuous").disabled=true;}
+else if(!("speechSynthesis" in window)){status("Speech recognition is available, but spoken replies are not supported.");}
+else{status("Ready. Choose a voice mode to speak to Cosmo.");}
+postValue({type:"ready"});
+window.parent.postMessage({isStreamlitMessage:true,type:"streamlit:componentReady",apiVersion:1},"*");resize();
+})();
+</script></body></html>
