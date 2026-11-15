@@ -82,11 +82,25 @@ def get_companion_response(history, user_message=None, mood_context=None):
             data = json.loads(response.read().decode("utf-8"))
         return data["choices"][0]["message"]["content"].strip()
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(
-            f"Groq API returned HTTP {exc.code}. Check the API key, model name, "
-            "and account limits."
-        ) from exc
+        # Preserve Groq's own error message so the UI can show the actual cause
+        # (for example, an access restriction) instead of a generic 403 message.
+        raw_detail = exc.read().decode("utf-8", errors="replace")
+        try:
+            error_data = json.loads(raw_detail)
+            error_info = error_data.get("error", error_data)
+            detail = (
+                error_info.get("message")
+                or error_info.get("code")
+                or error_info.get("type")
+                or raw_detail
+            )
+        except (ValueError, AttributeError):
+            detail = raw_detail
+        detail = str(detail).replace("\\n", " ").strip()[:500]
+        message = f"Groq API returned HTTP {exc.code}"
+        if detail:
+            message += f": {detail}"
+        raise RuntimeError(message) from exc
     except (urllib.error.URLError, TimeoutError, KeyError, IndexError, ValueError) as exc:
         raise RuntimeError(
             "Could not get a reply from Groq. Check the app's network connection "
