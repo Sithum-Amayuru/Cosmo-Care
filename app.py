@@ -181,8 +181,11 @@ else:
                     st.session_state.cosmo_chat_history.append(
                         {"role": "assistant", "content": opening}
                     )
+                    st.session_state.cosmo_voice_response_text = opening
+                    st.session_state.cosmo_voice_response_id += 1
                     st.session_state.cosmo_mood_checkin_started = True
                     st.session_state.cosmo_pending_mood = None
+                    st.rerun()
                 except RuntimeError as exc:
                     st.error(str(exc))
                     st.info(
@@ -220,7 +223,8 @@ else:
             if st.button("New conversation", key="cosmo_new_chat"):
                 st.session_state.cosmo_chat_history = []
                 st.session_state.cosmo_pending_mood = None
-                st.session_state.cosmo_mood_checkin_started = True
+                st.session_state.cosmo_mood_checkin_started = False
+                st.session_state.cosmo_voice_response_text = ""
                 st.rerun()
         st.divider()
 
