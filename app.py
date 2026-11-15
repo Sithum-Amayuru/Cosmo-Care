@@ -29,6 +29,30 @@ st.session_state.setdefault("cosmo_voice_response_text", "")
 st.session_state.setdefault("cosmo_voice_response_id", 0)
 st.session_state.setdefault("cosmo_last_voice_event_id", None)
 
+sidebar_bg_url = "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=85"
+for sb_candidate in (
+    Path(__file__).parent / "sidebar_bg.jpg",
+    Path(__file__).parent / "assets" / "sidebar_bg.jpg",
+    Path(__file__).parent / "image_6a81be.jpg",
+):
+    if sb_candidate.exists():
+        sb_b64 = base64.b64encode(sb_candidate.read_bytes()).decode()
+        sidebar_bg_url = f"data:image/jpeg;base64,{sb_b64}"
+        break
+
+st.markdown(
+    f"""
+    <style>
+    section[data-testid="stSidebar"] {{
+        background: linear-gradient(rgba(4, 12, 32, 0.35), rgba(4, 12, 32, 0.45)),
+                    url("{sidebar_bg_url}") no-repeat center center !important;
+        background-size: cover !important;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
 
