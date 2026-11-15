@@ -178,10 +178,26 @@ def planner_tab():
             p = profiles[uid]
             zone = agent.resolve_zone(distance, surface)
             exercises, diet = agent.personalise(bridge.merged_kb(uid), zone, p)
+
+            # Connect the latest examination records to this astronaut's plan.
+            exams, exams_by_id = exam_bridge.load_defs()
+            records = bridge.read_json(EXAMS_FILE, {}).get(uid, [])
+            latest = exam_bridge.latest_by_exam(records)
+            exam_findings = []
+
+            for exam_id, record in latest.items():
+                exam = exams_by_id.get(exam_id)
+                if exam:
+                    exam_findings.extend(
+                        exam_bridge.findings_for_record(exam, record)
+                    )
+
             st.session_state["cosmo_health_plan"] = {
                 "uid": uid, "zone": zone, "bmi": agent.bmi(p),
                 "energy": agent.daily_energy_kcal(p), "exercises": exercises,
-                "diet": diet, "flags": agent.safety_flags(p, zone)
+                "diet": diet, "flags": agent.safety_flags(p, zone),
+                "exam_findings": exam_findings,
+                "exam_count": len(latest)
             }
         except Exception as exc:
             st.error(f"Could not generate plan: {exc}")
@@ -205,6 +221,33 @@ def planner_tab():
         if result["flags"]:
             for flag in result["flags"]:
                 st.warning(flag)
+
+        st.subheader("Medical examination review")
+        exam_findings = result.get("exam_findings", [])
+        exam_count = result.get("exam_count", 0)
+
+        if exam_findings:
+            st.warning(
+                "One or more latest examination results were flagged by "
+                "the demonstration reference rules. Professional review is required."
+            )
+            st.dataframe(
+                pd.DataFrame(exam_findings),
+                use_container_width=True,
+                hide_index=True
+            )
+        elif exam_count:
+            st.info(
+                f"No latest examination values were flagged by the demo rules "
+                f"across {exam_count} recorded examination type(s). "
+                "This is not medical clearance."
+            )
+        else:
+            st.info(
+                "No examination records are available for this astronaut yet. "
+                "Record an examination to include its review flags here."
+            )
+
         if any("PLACEHOLDER" in str(x.get("source", "")).upper()
                for x in result["exercises"] + result["diet"]):
             st.warning("Some library sources are placeholders. These entries are unverified examples, not evidence-based recommendations.")
