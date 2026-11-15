@@ -14,6 +14,9 @@ from cosmo_voice import cosmo_voice
 
 st.session_state.setdefault("cosmo_authenticated", False)
 st.session_state.setdefault("cosmo_selected_page", "Mission Overview")
+st.session_state.setdefault("cosmo_current_page", "Mission Overview")
+st.session_state.setdefault("cosmo_page_history", [])
+st.session_state.setdefault("cosmo_skip_history_update", False)
 st.session_state.setdefault("cosmo_cam_gen", 0)
 st.session_state.setdefault("cosmo_chat_open", False)
 st.session_state.setdefault("cosmo_last_prompt_action", None)
@@ -337,9 +340,47 @@ else:
                 st.session_state.cosmo_checkup_prompt_dismissed_date = today_key
                 st.rerun()
 
+    def _go_back():
+        history = st.session_state.get("cosmo_page_history", [])
+        if history:
+            st.session_state.cosmo_selected_page = history.pop()
+        st.session_state.cosmo_skip_history_update = True
+
+    def _go_home():
+        st.session_state.cosmo_selected_page = "Mission Overview"
+        st.session_state.cosmo_page_history = []
+        st.session_state.cosmo_skip_history_update = True
+
     selected_page = st.sidebar.radio(
         "Mission workspace",
         list(page_options.keys()),
         key="cosmo_selected_page",
     )
+
+    # Track visited workspaces so the Back button returns to the previous page.
+    if selected_page != st.session_state.cosmo_current_page:
+        if not st.session_state.cosmo_skip_history_update:
+            st.session_state.cosmo_page_history.append(
+                st.session_state.cosmo_current_page
+            )
+        st.session_state.cosmo_current_page = selected_page
+    st.session_state.cosmo_skip_history_update = False
+
+    back_col, home_col, _ = st.columns([1, 1, 6])
+    with back_col:
+        st.button(
+            "← Back",
+            key="cosmo_page_back",
+            disabled=not st.session_state.cosmo_page_history,
+            on_click=_go_back,
+            use_container_width=True,
+        )
+    with home_col:
+        st.button(
+            "⌂ Home",
+            key="cosmo_page_home",
+            on_click=_go_home,
+            use_container_width=True,
+        )
+
     runpy.run_path(page_options[selected_page])
