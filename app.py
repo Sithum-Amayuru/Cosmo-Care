@@ -1,3 +1,5 @@
+import base64
+from pathlib import Path
 import runpy
 
 import streamlit as st
@@ -91,6 +93,33 @@ with st.sidebar:
     )
 
 if not st.session_state.cosmo_authenticated:
+    bg_url = "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1920&q=85"
+    for candidate in (
+        Path(__file__).parent / "galaxy_bg.jpg",
+        Path(__file__).parent / "assets" / "galaxy_bg.jpg",
+        Path(__file__).parent / "image_6b8443.jpg",
+    ):
+        if candidate.exists():
+            b64_img = base64.b64encode(candidate.read_bytes()).decode()
+            bg_url = f"data:image/jpeg;base64,{b64_img}"
+            break
+
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background: linear-gradient(rgba(8, 12, 24, 0.55), rgba(8, 12, 24, 0.65)),
+                        url("{bg_url}") no-repeat center center fixed !important;
+            background-size: cover !important;
+        }}
+        header[data-testid="stHeader"] {{
+            background: transparent !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown("## Mission access required")
     st.write(
         "Start the camera from the sidebar and allow browser camera permission. "
@@ -270,6 +299,7 @@ else:
         "Personalized Health": "views/personalized_health.py",
         "Reports & Data": "views/reports_and_data.py",
     }
+
     def _cosmo_go_back():
         history = st.session_state.get("cosmo_page_history", [])
         if history:
@@ -286,7 +316,6 @@ else:
         selected_page = "Mission Overview"
         st.session_state.cosmo_selected_page = selected_page
 
-    # Keep a simple navigation history for the global Back button.
     if selected_page != st.session_state.cosmo_current_page:
         if not st.session_state.cosmo_skip_history_update:
             st.session_state.cosmo_page_history.append(
