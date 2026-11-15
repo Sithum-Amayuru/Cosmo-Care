@@ -10,7 +10,6 @@ from ui_theme import apply_theme
 from modules.mission_backend import (
     AstronautVitals,
     BioAstronauticsLogic,
-    DeepSpaceSupplyEngine,
 )
 
 apply_theme()
