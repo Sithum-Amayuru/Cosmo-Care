@@ -252,6 +252,7 @@ else:
         "Crew & Environment": "views/crew_environment.py",
         "Personalized Health": "views/personalized_health.py",
         "Daily Health Checkup": "views/health_checkup.py",
+        "Experimental Triage Engine": "views/experimental_triage.py",
         "Reports & Data": "views/reports_and_data.py",
     }
 
