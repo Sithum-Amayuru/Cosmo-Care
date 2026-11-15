@@ -27,22 +27,16 @@ st.session_state.setdefault("cosmo_last_voice_event_id", None)
 st.title("COSMO CARE")
 st.caption("Astronaut health and mission-safety monitoring prototype")
 
-# The camera runs in the browser (face detection + expression estimate), so video
-# never leaves the user's device. The component lives in a fixed container at the
-# top of the sidebar so it stays mounted while the user switches pages in-page.
 with st.sidebar:
     st.markdown("## 🛰️ Mission access")
     st.caption("Face-presence demo login")
     camera_slot = st.container()
 
     with camera_slot:
-        # Changing the key (on logout) removes the old component, which releases the camera.
         cam = cosmo_camera(key=f"cosmo-camera-{st.session_state.cosmo_cam_gen}")
 
-    # Share the latest expression totals with the dashboard pages.
     st.session_state.cosmo_expression_totals = cam["totals"]
 
-    # The astronaut chose to talk to the support assistant (handled once per click).
     if (
         cam["promptAction"] == "accepted"
         and st.session_state.cosmo_last_prompt_action != "accepted"
@@ -80,7 +74,6 @@ with st.sidebar:
         st.success("Face check passed. You can now enter Cosmo Care.")
         st.caption("You do not need to keep your face in the camera.")
         if st.button("Enter Cosmo Care", type="primary", use_container_width=True):
-            # The button event already causes a rerun; do not force a second one.
             st.session_state.cosmo_authenticated = True
     elif cam["status"] == "running":
         st.info("Keep your face visible for about 3 seconds.")
@@ -106,144 +99,124 @@ if not st.session_state.cosmo_authenticated:
         "Astronaut identity recognition and anti-spoofing are future requirements."
     )
 else:
+    st.markdown("""
+    <style>
+    div[data-testid="stHorizontalBlock"]:has(#floating-cosmo-anchor) {
+        position: fixed !important;
+        bottom: 24px !important;
+        right: 28px !important;
+        width: auto !important;
+        z-index: 99999 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 12px !important;
+        background: transparent !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(#floating-cosmo-anchor) > div {
+        width: auto !important;
+        flex: 0 0 auto !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(#floating-cosmo-anchor) > div:nth-child(1) div[data-testid="stPopover"] > div > button {
+        width: 54px !important;
+        height: 54px !important;
+        min-width: 54px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #00c6ff 0%, #7f8ce8 55%, #9b5de5 100%) !important;
+        color: #ffffff !important;
+        border: 2px solid rgba(255, 255, 255, 0.85) !important;
+        box-shadow: 0 6px 18px rgba(127, 140, 232, 0.45) !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 1.35rem !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(#floating-cosmo-anchor) > div:nth-child(1) div[data-testid="stPopover"] > div > button svg {
+        display: none !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(#floating-cosmo-anchor) > div:nth-child(2) div[data-testid="stPopover"] > div > button {
+        height: 54px !important;
+        border-radius: 30px !important;
+        background: linear-gradient(95deg, #00d2ff 0%, #6366f1 55%, #9b5de5 100%) !important;
+        color: #ffffff !important;
+        border: 2px solid rgba(255, 255, 255, 0.85) !important;
+        padding: 0 24px !important;
+        font-weight: 800 !important;
+        font-size: 0.95rem !important;
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(#floating-cosmo-anchor) > div:nth-child(2) div[data-testid="stPopover"] > div > button svg {
+        display: none !important;
+    }
+
+    div[data-testid="stPopoverBody"] {
+        width: 390px !important;
+        max-width: 92vw !important;
+        border-radius: 16px !important;
+        padding: 16px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.success("Welcome to the Cosmo Care mission console.")
 
-    # Manual companion access: astronauts can start a conversation at any time,
-    # independently of the camera's uncertain expression estimate.
-    if not st.session_state.cosmo_chat_open:
-        if st.button("💬 Talk to Cosmo", type="primary", key="cosmo_manual_chat"):
-            st.session_state.cosmo_chat_open = True
-            st.session_state.cosmo_pending_mood = None
-            st.session_state.cosmo_mood_checkin_started = False
-            st.rerun()
+    import os
+    from modules.astro_agent_companion import get_astro_agent_response
 
-    if st.session_state.cosmo_chat_open:
-        import os
+    try:
+        if st.secrets.get("OPENROUTER_API_KEY"):
+            os.environ["OPENROUTER_API_KEY"] = st.secrets["OPENROUTER_API_KEY"]
+        if st.secrets.get("OPENROUTER_MODEL"):
+            os.environ["OPENROUTER_MODEL"] = st.secrets["OPENROUTER_MODEL"]
+        if st.secrets.get("GROQ_API_KEY"):
+            os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+        if st.secrets.get("GROQ_MODEL"):
+            os.environ["GROQ_MODEL"] = st.secrets["GROQ_MODEL"]
+    except Exception:
+        pass
 
-        from modules.astro_agent_companion import get_astro_agent_response
-
-        # Streamlit Cloud secrets are exposed through st.secrets, not automatically
-        # as environment variables. Copy the OpenRouter settings into this process.
-        try:
-            if st.secrets.get("OPENROUTER_API_KEY"):
-                os.environ["OPENROUTER_API_KEY"] = st.secrets["OPENROUTER_API_KEY"]
-            if st.secrets.get("OPENROUTER_MODEL"):
-                os.environ["OPENROUTER_MODEL"] = st.secrets["OPENROUTER_MODEL"]
-            if st.secrets.get("GROQ_API_KEY"):
-                os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-            if st.secrets.get("GROQ_MODEL"):
-                os.environ["GROQ_MODEL"] = st.secrets["GROQ_MODEL"]
-        except Exception:
-            pass
-
-        st.markdown("### 💬 Cosmo Care companion")
-        st.caption("A friendly conversation partner — not a mental-health diagnostic tool.")
-
-        st.caption("Voice-first companion with text chat as a fallback.")
-
-        # The browser component handles microphone input and spoken playback.
-        # Only replies to voice-originated messages are sent back for speech.
-        voice_event = cosmo_voice(
-            response_text=st.session_state.cosmo_voice_response_text,
-            response_id=st.session_state.cosmo_voice_response_id,
-            key="cosmo_voice_interface",
-            active=True,
+    if (
+        st.session_state.cosmo_chat_open
+        and not st.session_state.cosmo_mood_checkin_started
+        and (
+            st.session_state.cosmo_pending_mood is not None
+            or not st.session_state.cosmo_chat_history
         )
-
-        if (
-            isinstance(voice_event, dict)
-            and voice_event.get("type") == "transcript"
-            and voice_event.get("eventId") != st.session_state.cosmo_last_voice_event_id
-        ):
-            st.session_state.cosmo_last_voice_event_id = voice_event.get("eventId")
-            spoken_message = (voice_event.get("text") or "").strip()
-            if spoken_message:
-                st.session_state.cosmo_chat_history.append(
-                    {"role": "user", "content": spoken_message}
-                )
-                try:
-                    voice_reply = get_astro_agent_response(
-                        st.session_state.cosmo_chat_history[:-1],
-                        user_message=spoken_message,
-                    )
-                    st.session_state.cosmo_chat_history.append(
-                        {"role": "assistant", "content": voice_reply}
-                    )
-                    st.session_state.cosmo_voice_response_text = voice_reply
-                    st.session_state.cosmo_voice_response_id += 1
-                except RuntimeError as exc:
-                    st.session_state.cosmo_voice_response_text = (
-                        "I'm having trouble connecting right now. Please try again in a moment."
-                    )
-                    st.session_state.cosmo_voice_response_id += 1
-                    st.error(str(exc))
-                st.rerun()
-
-        # Start one gentle greeting when the companion is opened, whether by
-        # accepting a camera prompt or by using the manual Talk to Cosmo button.
-        if (
-            not st.session_state.cosmo_mood_checkin_started
-            and (
-                st.session_state.cosmo_pending_mood is not None
-                or not st.session_state.cosmo_chat_history
-            )
-        ):
-            with st.spinner("Your companion is getting ready..."):
-                try:
-                    opening = get_astro_agent_response(
-                        st.session_state.cosmo_chat_history,
-                        mood_context=st.session_state.cosmo_pending_mood,
-                    )
-                    st.session_state.cosmo_chat_history.append(
-                        {"role": "assistant", "content": opening}
-                    )
-                    st.session_state.cosmo_voice_response_text = opening
-                    st.session_state.cosmo_voice_response_id += 1
-                    st.session_state.cosmo_mood_checkin_started = True
-                    st.session_state.cosmo_pending_mood = None
-                    st.rerun()
-                except RuntimeError as exc:
-                    st.error(str(exc))
-                    st.info(
-                        "If OpenRouter is rate-limited, add GROQ_API_KEY to Streamlit "
-                        "app secrets to enable the backup provider. At least one valid "
-                        "provider key is required. Never put API keys in source code."
-                    )
-
-        for message in st.session_state.cosmo_chat_history:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        user_message = st.chat_input("Talk to your companion...", key="cosmo_chat_input")
-        if user_message:
-            st.session_state.cosmo_chat_history.append(
-                {"role": "user", "content": user_message}
-            )
+    ):
+        with st.spinner("Your companion is getting ready..."):
             try:
-                reply = get_astro_agent_response(
-                    st.session_state.cosmo_chat_history[:-1],
-                    user_message=user_message,
+                opening = get_astro_agent_response(
+                    st.session_state.cosmo_chat_history,
+                    mood_context=st.session_state.cosmo_pending_mood,
                 )
                 st.session_state.cosmo_chat_history.append(
-                    {"role": "assistant", "content": reply}
+                    {"role": "assistant", "content": opening}
                 )
+                st.session_state.cosmo_voice_response_text = opening
+                st.session_state.cosmo_voice_response_id += 1
+                st.session_state.cosmo_mood_checkin_started = True
+                st.session_state.cosmo_pending_mood = None
+                st.rerun()
             except RuntimeError as exc:
                 st.error(str(exc))
-            st.rerun()
-
-        left, right = st.columns(2)
-        with left:
-            if st.button("Close assistant", key="cosmo_close_chat"):
-                st.session_state.cosmo_chat_open = False
-                st.rerun()
-        with right:
-            if st.button("New conversation", key="cosmo_new_chat"):
-                st.session_state.cosmo_chat_history = []
-                st.session_state.cosmo_pending_mood = None
-                st.session_state.cosmo_mood_checkin_started = False
-                st.session_state.cosmo_voice_response_text = ""
-                st.rerun()
-        st.divider()
+                st.info(
+                    "If OpenRouter is rate-limited, add GROQ_API_KEY to Streamlit "
+                    "app secrets to enable the backup provider. At least one valid "
+                    "provider key is required. Never put API keys in source code."
+                )
 
     page_options = {
         "Mission Overview": "home.py",
@@ -258,3 +231,100 @@ else:
         key="cosmo_selected_page",
     )
     runpy.run_path(page_options[selected_page])
+
+    voice_col, chat_col = st.columns([1, 1])
+
+    with voice_col:
+        st.markdown('<div id="floating-cosmo-anchor"></div>', unsafe_allow_html=True)
+        with st.popover("🎙️"):
+            st.markdown("### 🎙️ Voice Companion")
+            st.caption("Speak directly to your Cosmo Care companion.")
+            voice_event = cosmo_voice(
+                response_text=st.session_state.cosmo_voice_response_text,
+                response_id=st.session_state.cosmo_voice_response_id,
+                key="cosmo_voice_interface",
+                active=True,
+            )
+
+            if (
+                isinstance(voice_event, dict)
+                and voice_event.get("type") == "transcript"
+                and voice_event.get("eventId") != st.session_state.cosmo_last_voice_event_id
+            ):
+                st.session_state.cosmo_last_voice_event_id = voice_event.get("eventId")
+                spoken_message = (voice_event.get("text") or "").strip()
+                if spoken_message:
+                    st.session_state.cosmo_chat_history.append(
+                        {"role": "user", "content": spoken_message}
+                    )
+                    try:
+                        voice_reply = get_astro_agent_response(
+                            st.session_state.cosmo_chat_history[:-1],
+                            user_message=spoken_message,
+                        )
+                        st.session_state.cosmo_chat_history.append(
+                            {"role": "assistant", "content": voice_reply}
+                        )
+                        st.session_state.cosmo_voice_response_text = voice_reply
+                        st.session_state.cosmo_voice_response_id += 1
+                    except RuntimeError as exc:
+                        st.session_state.cosmo_voice_response_text = (
+                            "I'm having trouble connecting right now. Please try again in a moment."
+                        )
+                        st.session_state.cosmo_voice_response_id += 1
+                        st.error(str(exc))
+                    st.rerun()
+
+    with chat_col:
+        with st.popover("💬 Mental Health AI"):
+            st.markdown("### 💬 Cosmo Care companion")
+            st.caption("A friendly conversation partner — not a mental-health diagnostic tool.")
+
+            if (
+                not st.session_state.cosmo_mood_checkin_started
+                and not st.session_state.cosmo_chat_history
+            ):
+                if st.button("👋 Start greeting", key="cosmo_start_greeting", use_container_width=True):
+                    st.session_state.cosmo_chat_open = True
+                    st.rerun()
+
+            chat_container = st.container(height=280)
+            with chat_container:
+                for message in st.session_state.cosmo_chat_history:
+                    with st.chat_message(message["role"]):
+                        st.markdown(message["content"])
+
+            with st.form("cosmo_popup_chat_form", clear_on_submit=True):
+                c_in, c_btn = st.columns([4, 1])
+                with c_in:
+                    user_message = st.text_input(
+                        "Talk to your companion...",
+                        placeholder="Talk to your companion...",
+                        label_visibility="collapsed",
+                    )
+                with c_btn:
+                    submitted = st.form_submit_button("➤")
+
+                if submitted and user_message.strip():
+                    clean_msg = user_message.strip()
+                    st.session_state.cosmo_chat_history.append(
+                        {"role": "user", "content": clean_msg}
+                    )
+                    try:
+                        reply = get_astro_agent_response(
+                            st.session_state.cosmo_chat_history[:-1],
+                            user_message=clean_msg,
+                        )
+                        st.session_state.cosmo_chat_history.append(
+                            {"role": "assistant", "content": reply}
+                        )
+                    except RuntimeError as exc:
+                        st.error(str(exc))
+                    st.rerun()
+
+            if st.button("New conversation", key="cosmo_new_chat", use_container_width=True):
+                st.session_state.cosmo_chat_history = []
+                st.session_state.cosmo_pending_mood = None
+                st.session_state.cosmo_mood_checkin_started = False
+                st.session_state.cosmo_voice_response_text = ""
+                st.rerun()
